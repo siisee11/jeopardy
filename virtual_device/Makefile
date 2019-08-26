@@ -14,4 +14,6 @@ clean:
 	rm -rf *.ko
 	rm -rf *.mod.*
 	rm -rf .*.cmd
+	rm -rf *.order
+	rm -rf *.symvers
 	rm -rf *.o
