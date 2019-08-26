@@ -3,6 +3,7 @@
 ## how to run this.
 
 To make character device in /dev, type this.
+
 `sudo mknod /dev/virtual_device c 255 0`
 
 255 is major number and 0 is minor number.
