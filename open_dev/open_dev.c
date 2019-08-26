@@ -8,7 +8,8 @@ int main(void)
 {
 	int             fd;
 	char           *mptr;
-	fd = open("/dev/pmem0", O_RDWR | O_SYNC);
+//	fd = open("/dev/pmem0", O_RDWR | O_SYNC);
+	fd = open("/dev/dax0.0", O_RDWR | O_SYNC);
 	if (fd == -1) {
 		printf("open error...\n");
 		return 1;

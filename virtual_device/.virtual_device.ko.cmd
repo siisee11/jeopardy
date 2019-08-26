@@ -1,0 +1,1 @@
+cmd_/home/siisee11/jeoparty/virtual_device/virtual_device.ko := ld -r -m elf_x86_64  -z max-page-size=0x200000 -T ./scripts/module-common.lds  --build-id  -o /home/siisee11/jeoparty/virtual_device/virtual_device.ko /home/siisee11/jeoparty/virtual_device/virtual_device.o /home/siisee11/jeoparty/virtual_device/virtual_device.mod.o ;  true
