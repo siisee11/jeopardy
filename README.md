@@ -11,3 +11,8 @@ use ndctl to make /dev/pmem0 with option --mode=fsdax
 
 ```ndctl create-namespace --force --reconfig=namespace0.0 --mode=fsdax --map=mem```
 
+
+## Time Stamp
+2019/08/18 - create repository.
+2019/08/19 - control dax device using POSIX I/O.
+2019/09/07 - merge several repository into this.
