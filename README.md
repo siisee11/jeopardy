@@ -19,4 +19,4 @@ use ndctl to make /dev/pmem0 with option --mode=fsdax
 
 2019/09/07 - merge several repository into this.
 
-
+2019/11/17 - pmdfc (persistent memory distributed file cache) directory is added.
