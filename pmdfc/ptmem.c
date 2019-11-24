@@ -20,6 +20,7 @@ bool __read_mostly tmem_enabled = false;
 
 static int __init enable_tmem(char *s)
 {
+	printk("tmem_enabled!\n");
 	tmem_enabled = true;
 	return 1;
 }
@@ -70,7 +71,7 @@ static void tmem_cleancache_put_page(int pool, struct cleancache_filekey key,
 	u32 ind = (u32) index;
 	struct tmem_oid oid = *(struct tmem_oid *)&key;
 
-	printk("tmem_cleancache_put_page called");
+	printk("tmem_cleancache_put_page called\n");
 
 	if (pool < 0)
 		return;
@@ -86,7 +87,7 @@ static int tmem_cleancache_get_page(int pool, struct cleancache_filekey key,
 	struct tmem_oid oid = *(struct tmem_oid *)&key;
 	int ret;
 
-	printk("tmem_cleancache_get_page called");
+	printk("tmem_cleancache_get_page called\n");
 
 	/* translate return values to linux semantics */
 	if (pool < 0)
@@ -129,7 +130,7 @@ static void tmem_cleancache_flush_fs(int pool)
 static int tmem_cleancache_init_fs(size_t pagesize)
 {
 	struct tmem_pool_uuid uuid_private = TMEM_POOL_PRIVATE_UUID;
-	printk("tmem_cleancache_get_page called");
+	printk("tmem_cleancache_get_page called\n");
 	/* return poolid, for test it is 0 */
 	return 0;
 }
@@ -158,17 +159,18 @@ static const struct cleancache_ops tmem_cleancache_ops = {
 static int __init ptmem_init(void)
 {
 	BUILD_BUG_ON(sizeof(struct cleancache_filekey) != sizeof(struct tmem_oid));
-	if (tmem_enabled && cleancache) {
-		int err;
+	printk("ptmem initialize start\n");
+//	if (tmem_enabled && cleancache) {
+	int err;
 
-		err = cleancache_register_ops(&tmem_cleancache_ops);
-		if (err)
-			pr_warn("ptmem: failed to enable cleancache: %d\n",
-				err);
-		else
-			pr_info("cleancache enabled, RAM provided by "
-				"Persistent Transcendent Memory\n");
-	}
+	err = cleancache_register_ops(&tmem_cleancache_ops);
+	if (err)
+		pr_warn("ptmem: failed to enable cleancache: %d\n",
+			err);
+	else
+		pr_info("cleancache enabled, RAM provided by "
+			"Persistent Transcendent Memory\n");
+//	}
 
 	return 0;
 }
