@@ -20,3 +20,8 @@ use ndctl to make /dev/pmem0 with option --mode=fsdax
 2019/09/07 - merge several repository into this.
 
 2019/11/17 - pmdfc (persistent memory distributed file cache) directory is added.
+
+
+## reference
+
+[Change Kernel on ubuntu](https://medium.com/@siisee111/virtual-ubuntu-%ED%8A%B9%EC%A0%95-%EB%B2%84%EC%A0%84%EC%9C%BC%EB%A1%9C-%EC%BB%A4%EB%84%90-%EB%B2%84%EC%A0%84-%EB%B0%94%EA%BE%B8%EA%B8%B0-e5555ffc2121)
