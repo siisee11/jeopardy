@@ -1220,6 +1220,7 @@ static struct shrinker zcache_shrinker = {
  * zcache shims between cleancache/frontswap ops and tmem
  */
 
+/* HERE */
 /* FIXME rename these core routines to zcache_tmemput etc? */
 int zcache_put_page(int cli_id, int pool_id, struct tmem_oid *oidp,
 				uint32_t index, void *page,
@@ -1231,6 +1232,7 @@ int zcache_put_page(int cli_id, int pool_id, struct tmem_oid *oidp,
 	void *pampd = NULL;
 
 	BUG_ON(!irqs_disabled());
+	/* Get pool id first */
 	pool = zcache_get_pool_by_id(cli_id, pool_id);
 	if (unlikely(pool == NULL))
 		goto out;
@@ -1240,6 +1242,7 @@ int zcache_put_page(int cli_id, int pool_id, struct tmem_oid *oidp,
 		th.pool_id = pool_id;
 		th.oid = *oidp;
 		th.index = index;
+		/* Create PAMPD (preallocated space to store zpage*/
 		pampd = zcache_pampd_create((char *)page, size, raw,
 				ephemeral, &th);
 		if (pampd == NULL) {
@@ -1251,6 +1254,7 @@ int zcache_put_page(int cli_id, int pool_id, struct tmem_oid *oidp,
 		} else {
 			if (ramster_enabled)
 				ramster_do_preload_flnode(pool);
+			/* Do tmem_put */
 			ret = tmem_put(pool, oidp, index, 0, pampd);
 			if (ret < 0)
 				BUG();
@@ -1495,6 +1499,7 @@ out:
  * to translate in-kernel semantics to zcache semantics.
  */
 
+/* HERE */
 static void zcache_cleancache_put_page(int pool_id,
 					struct cleancache_filekey key,
 					pgoff_t index, struct page *page)
