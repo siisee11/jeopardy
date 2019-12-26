@@ -1242,7 +1242,7 @@ int zcache_put_page(int cli_id, int pool_id, struct tmem_oid *oidp,
 		th.pool_id = pool_id;
 		th.oid = *oidp;
 		th.index = index;
-		/* Create PAMPD (preallocated space to store zpage*/
+		/* Create PAMPD (Page Addressable Memory Page Descriptor) */
 		pampd = zcache_pampd_create((char *)page, size, raw,
 				ephemeral, &th);
 		if (pampd == NULL) {
