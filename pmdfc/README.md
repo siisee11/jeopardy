@@ -21,6 +21,8 @@ Persistent Memory Distributed File Cache
 
 * insmod works. ```dmesg``` to see log
 
+* pmdfc.c is main source code. ptmem.c is deprecated.
+
 ## Errors
 
 * kmod_module_remove_module() could not remove 'ptmem': Device or resource busy.

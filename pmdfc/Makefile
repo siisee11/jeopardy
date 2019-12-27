@@ -1,4 +1,6 @@
-obj-m := pmdfc_backend.o
+CONFIG_MODULE_SIG=n
+TARGET_MODULE := pmdfc
+obj-m := $(TARGET_MODULE).o
 
 KDIR	:= "/lib/modules/$(shell uname -r)/build"
 PWD     := $(shell pwd)
@@ -17,3 +19,7 @@ clean:
 	make -C $(KDIR) M=$(PWD) clean
 prepare:
 	make -C $(KDIR) modules
+load:
+	insmod ./$(TARGET_MODULE).ko
+unload:
+	rmmod ./$(TARGET_MODULE).ko
