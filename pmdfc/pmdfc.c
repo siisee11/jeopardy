@@ -24,7 +24,7 @@ static int pmdfc_cleancache_get_page(int pool_id,
 					struct cleancache_filekey key,
 					pgoff_t index, struct page *page)
 {
-	printk(KERN_INFO "pmdfc: GET PAGE %d %ld %p\n", pool_id, index, page);
+	printk(KERN_INFO "pmdfc: GET PAGE %d %ld %p ino: %ld\n", pool_id, index, page, page->mapping->host->i_ino);
 	return -1;
 }
 

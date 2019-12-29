@@ -1288,6 +1288,7 @@ int zcache_get_page(int cli_id, int pool_id, struct tmem_oid *oidp,
 	pool = zcache_get_pool_by_id(cli_id, pool_id);
 	eph = is_ephemeral(pool);
 	if (likely(pool != NULL)) {
+		/* struct page 에 (char *)하면 data가 된다구? */
 		if (atomic_read(&pool->obj_count) > 0)
 			ret = tmem_get(pool, oidp, index, (char *)(page),
 					sizep, raw, get_and_free);
