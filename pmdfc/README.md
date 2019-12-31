@@ -36,6 +36,19 @@ printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%
 [  356.670499] pmdfc: GET PAGE pool_id=1 key=2883636,0,0 index=3 page=0000000054507405
 ```
 
+After run spark benchmark
+
+```
+succ_gets :
+0
+failed_gets :
+2161414
+puts :
+2216211
+invalidates :
+1278095
+```
+
 
 
 ## Errors
