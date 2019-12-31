@@ -3,6 +3,8 @@
 #include <linux/module.h>
 #include <linux/uuid.h>
 
+#include "tmem.h"
+
 /* Allocation flags */
 #define pmdfc_GFP_MASK  (GFP_ATOMIC | __GFP_NORETRY | __GFP_NOWARN)
 
@@ -12,19 +14,39 @@
 /* The pool holding the compressed pages */
 struct page* page_pool;
 
+/* Currently handled oid */
+struct tmem_oid coid = {.oid[0]=-1UL, .oid[1]=-1UL, .oid[2]=-1UL};
+
 /*  Clean cache operations implementation */
 static void pmdfc_cleancache_put_page(int pool_id,
 					struct cleancache_filekey key,
 					pgoff_t index, struct page *page)
 {
-	printk(KERN_INFO "pmdfc: PUT PAGE %d %ld %p\n", pool_id, index, page);
+	printk(KERN_INFO "pmdfc: PUT PAGE pool_id=%d key=%u index=%ld page=%p\n", pool_id, 
+			*key.u.key, index, page);
+
+	if (tmem_oid_valid(&coid)) {
+		printk(KERN_INFO "pmdfc: PUT PAGE to coid success\n");
+		page_pool = page;
+	}
 }
 
 static int pmdfc_cleancache_get_page(int pool_id,
 					struct cleancache_filekey key,
 					pgoff_t index, struct page *page)
 {
-	printk(KERN_INFO "pmdfc: GET PAGE %d %ld %p ino: %ld\n", pool_id, index, page, page->mapping->host->i_ino);
+	u32 ind = (u32) index;
+	struct tmem_oid oid = *(struct tmem_oid *)&key;
+	
+	printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
+			(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
+
+	if ( tmem_oid_compare(&coid, &oid) == 0) {
+		page = page_pool;
+		printk(KERN_INFO "pmdfc: GET PAGE success\n");
+		return 1;
+	}
+
 	return -1;
 }
 
@@ -53,7 +75,6 @@ static int pmdfc_cleancache_init_fs(size_t pagesize)
 	printk(KERN_INFO "pmdfc: INIT FS\n");
 	atomic_inc(&pool_id);
 
-//	return -1;
 	return atomic_read(&pool_id);
 }
 
@@ -75,13 +96,6 @@ static const struct cleancache_ops pmdfc_cleancache_ops = {
 
 static int pmdfc_cleancache_register_ops(void)
 {
-	/* old
-	struct cleancache_ops old_ops =
-		cleancache_register_ops(&pmdfc_cleancache_ops);
-
-	return old_ops;
-	*/
-	// new
 	int ret;
 
 	ret = cleancache_register_ops(&pmdfc_cleancache_ops);

@@ -5,9 +5,9 @@ Persistent Memory Distributed File Cache
 
 ```modinfo ****.ko``` to see module information
 
-```insmod ****.ko``` to insert module.
+```insmod ****.ko``` or ```make load``` to insert module.
 
-```rmmod ****.ko``` to remove module.
+```rmmod ****.ko``` or ```make unload``` to remove module.
 
 
 ## What I did
@@ -26,20 +26,16 @@ Persistent Memory Distributed File Cache
 
 ## Result
 
-* printk(KERN_INFO "pmdfc: GET PAGE %d %ld %p ino: %ld\n", pool_id, index, page, page->mapping->host->i_ino);
+printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
+		(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
 
 ```
-[  579.287654] pmdfc: GET PAGE 1 0 0000000010c125fe ino: 2883636
-[  579.287670] pmdfc: GET PAGE 1 1 000000001762de72 ino: 2883636
-[  579.287672] pmdfc: GET PAGE 1 2 000000002596a2a4 ino: 2883636
-[  579.287674] pmdfc: GET PAGE 1 3 000000005dee7a35 ino: 2883636
-[  579.290152] pmdfc: GET PAGE 1 4 0000000090527f69 ino: 2883636
-[  579.290157] pmdfc: GET PAGE 1 5 00000000e479c066 ino: 2883636
-[  579.290159] pmdfc: GET PAGE 1 6 00000000923e518e ino: 2883636
-[  579.290161] pmdfc: GET PAGE 1 7 0000000034a8aca2 ino: 2883636
-[  579.290164] pmdfc: GET PAGE 1 8 0000000000a63c3f ino: 2883636
-[  579.290166] pmdfc: GET PAGE 1 9 000000009c25aecf ino: 2883636
+[  356.670474] pmdfc: GET PAGE pool_id=1 key=2883636,0,0 index=0 page=0000000094cf7832
+[  356.670493] pmdfc: GET PAGE pool_id=1 key=2883636,0,0 index=1 page=00000000c558ba63
+[  356.670496] pmdfc: GET PAGE pool_id=1 key=2883636,0,0 index=2 page=000000006957ed95
+[  356.670499] pmdfc: GET PAGE pool_id=1 key=2883636,0,0 index=3 page=0000000054507405
 ```
+
 
 
 ## Errors
@@ -49,3 +45,9 @@ Persistent Memory Distributed File Cache
 
 * cannot execute binary file: Exec format erro
   - ??
+
+## Questions
+
+* page pointers are different but key is same why?
+
+* How to print key value?

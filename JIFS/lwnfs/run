@@ -1,0 +1,36 @@
+#!/bin/sh
+
+run () {
+  sudo dd if=/dev/zero of=img bs=4096 count=100
+  sudo insmod lwnfs.ko
+  sudo mount -o loop -t lwnfs img mnt
+}
+
+clean () {
+  sudo umount mnt
+  sudo rmmod lwnfs
+  make clean
+}
+
+mount()
+{
+  sudo mount -o loop -t lwnfs img mnt
+}
+
+fs_test() {
+  run
+  echo "*** TEST START ***"
+}
+
+case "$1" in
+  clean)
+    clean
+    ;;
+  test)
+    mount
+    ;;
+  *)
+    run
+    ;;
+esac
+exit 0

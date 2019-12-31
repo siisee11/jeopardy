@@ -1,0 +1,159 @@
+#!/bin/sh
+
+ROOT_DIR=`pwd`
+TEST_DIR=tmp
+TEST_DIR=$ROOT_DIR/$TEST_DIR
+SETCOLOR_SUCCESS="echo -n \\033[1;32m"
+SETCOLOR_FAILURE="echo -n \\033[1;31m"
+SETCOLOR_NORMAL="echo -n \\033[1;39m"
+SETCOLOR_START="echo -n \\033[1;36m"
+TEST_DIR_ENTRY="MEIG TEST"
+
+OK() {
+  $SETCOLOR_SUCCESS
+  echo "\t[OK]"
+  $SETCOLOR_NORMAL
+}
+
+clean() {
+  cd ..
+  sudo umount $TEST_DIR
+  sudo rmmod s2fs
+  make clean
+}
+
+FAILED() {
+  echo -n "This test process failed"
+  $SETCOLOR_FAILURE
+  echo "\t[FAILED]"
+  $SETCOLOR_NORMAL
+  echo "Handling test end..."
+  clean
+  $SETCOLOR_FAILURE
+  echo "TEST FAILED"
+  exit 1
+}
+
+OUTPUT() {
+  echo -n "$MSG"
+}
+
+OUTPUTN() {
+  $SETCOLOR_START
+  echo -n "$MSG"
+  $SETCOLOR_NORMAL
+  echo
+}
+
+prepare() {
+  sudo umount mnt
+  sudo rmmod s2fs
+}
+
+run() {
+  make
+  make mkfs.s2fs
+  sudo dd if=/dev/zero of=img bs=4096 count=100
+  sudo insmod s2fs.ko
+  sudo ./mkfs.s2fs img
+  sudo mount -o loop -t s2fs img $TEST_DIR
+}
+
+test_entry() {
+  STATUS=0
+  MSG="Checking directory entry" OUTPUTN
+  cd $TEST_DIR
+  for file in *; do
+    for entry in $TEST_DIR_ENTRY; do
+      if [ -f $file -a $file = $entry ]; then
+	echo $file
+	STATUS=`expr $STATUS + 1`
+      fi
+    done
+  done
+
+  if [ $STATUS -eq 2 ]; then
+    MSG="The predicted directory entry normally exists" OUTPUT
+    OK
+  else
+    FAILED
+  fi
+}
+
+test_data() {
+  MSG="Checking whether file data can be read normaly" OUTPUTN
+  for file in *; do
+    cat $file
+  done
+  MSG="Each File's text data can be read normaly...?" OUTPUT
+  OK
+}
+
+test_append() {
+  MSG="Checking whether file data can be added normaly" OUTPUTN
+  WORDS="Gib jede Tag die Chance, der schonste deines Lebens zu werden."
+
+  MSG="Added data: " OUTPUT
+  echo $WORDS
+
+  for file in *; do
+    echo $WORDS >> $file
+  done
+
+  for file in *; do
+    cat $file
+  done
+
+  MSG="The append data can be added to each file...?" OUTPUT
+  OK
+}
+
+test_main() {
+  MSG="Checking for Directory ${ROOT_DIR}" OUTPUT
+  if [ -d $ROOT_DIR ]; then
+    OK
+  else
+    FAILED
+  fi
+
+  MSG="Creating test Directory $TEST_DIR" OUTPUT
+  mkdir -p $TEST_DIR
+  if [ -d $TEST_DIR ]; then
+    OK
+  else
+    FAILED
+  fi
+
+  MSG="Mounting s2fs on $TEST_DIR" OUTPUTN
+  run
+  if [ -e s2fs.ko ]; then
+    MSG="Compiling s2fs souce code succeeded!     " OUTPUT
+    OK
+  else
+    FAILED
+  fi
+
+  test_entry
+  test_data
+  #test_append
+
+  MSG="Clean and Removing test Directory $TEST_DIR" OUTPUTN
+  clean
+  rm -r $TEST_DIR
+  if [ ! -d $TEST_DIR ]; then
+    MSG="Delete tmp directory and Clean work space" OUTPUT
+    OK
+  else
+    FAILED
+  fi
+
+
+}
+
+cd `dirname $0`
+$SETCOLOR_NORMAL
+
+test_main
+$SETCOLOR_SUCCESS
+echo "ALL TEST SUCCEEDED!"
+echo ""

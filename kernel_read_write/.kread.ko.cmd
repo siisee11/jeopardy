@@ -1,0 +1,1 @@
+cmd_/home/siisee11/git/jeopardy/kernel_read_write/kread.ko := ld -r -m elf_x86_64 -z max-page-size=0x200000 -T ./scripts/module-common.lds --build-id  -o /home/siisee11/git/jeopardy/kernel_read_write/kread.ko /home/siisee11/git/jeopardy/kernel_read_write/kread.o /home/siisee11/git/jeopardy/kernel_read_write/kread.mod.o ;  true
