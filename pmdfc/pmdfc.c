@@ -54,13 +54,13 @@ static void pmdfc_cleancache_flush_page(int pool_id,
 					struct cleancache_filekey key,
 					pgoff_t index)
 {
-	printk(KERN_INFO "pmdfc: FLUSH PAGE: pool_id: %d\n", pool_id);
+//	printk(KERN_INFO "pmdfc: FLUSH PAGE: pool_id: %d\n", pool_id);
 }
 
 static void pmdfc_cleancache_flush_inode(int pool_id,
 					struct cleancache_filekey key)
 {
-	printk(KERN_INFO "pmdfc: FLUSH INODE: pool_id: %d\n", pool_id);
+//	printk(KERN_INFO "pmdfc: FLUSH INODE: pool_id: %d\n", pool_id);
 }
 
 static void pmdfc_cleancache_flush_fs(int pool_id)
