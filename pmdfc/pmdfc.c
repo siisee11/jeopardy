@@ -22,11 +22,14 @@ static void pmdfc_cleancache_put_page(int pool_id,
 					struct cleancache_filekey key,
 					pgoff_t index, struct page *page)
 {
+	struct tmem_oid oid = *(struct tmem_oid *)&key;
+
 	printk(KERN_INFO "pmdfc: PUT PAGE pool_id=%d key=%u index=%ld page=%p\n", pool_id, 
 			*key.u.key, index, page);
 
 	if (tmem_oid_valid(&coid)) {
-		printk(KERN_INFO "pmdfc: PUT PAGE to coid success\n");
+		printk(KERN_INFO "pmdfc: PUT PAGE success\n");
+		coid = oid;
 		page_pool = page;
 	}
 }
