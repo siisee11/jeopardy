@@ -49,6 +49,14 @@ invalidates :
 1278095
 ```
 
+The first page succeed to put page. But, when succeedn get system die.
+```
+[   49.415492] >> pmdfc: cleancache_register_ops success
+[   49.415493] >> pmdfc: cleancache_enabled
+[   82.280056] pmdfc: PUT PAGE pool_id=1 key=917931 index=375 page=000000008a88ba8d
+[   82.280058] pmdfc: PUT PAGE success
+```
+
 
 
 ## Errors

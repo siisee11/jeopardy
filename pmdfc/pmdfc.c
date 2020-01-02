@@ -24,13 +24,13 @@ static void pmdfc_cleancache_put_page(int pool_id,
 {
 	struct tmem_oid oid = *(struct tmem_oid *)&key;
 
-	printk(KERN_INFO "pmdfc: PUT PAGE pool_id=%d key=%u index=%ld page=%p\n", pool_id, 
-			*key.u.key, index, page);
-
-	if (tmem_oid_valid(&coid)) {
+	if (!tmem_oid_valid(&coid)) {
+		printk(KERN_INFO "pmdfc: PUT PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
+				(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
 		printk(KERN_INFO "pmdfc: PUT PAGE success\n");
 		coid = oid;
 		page_pool = page;
+		tmem_oid_print(&coid);
 	}
 }
 
@@ -41,13 +41,13 @@ static int pmdfc_cleancache_get_page(int pool_id,
 	u32 ind = (u32) index;
 	struct tmem_oid oid = *(struct tmem_oid *)&key;
 	
-	printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
-			(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
+//	printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
+//			(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
 
 	if ( tmem_oid_compare(&coid, &oid) == 0) {
 		page = page_pool;
 		printk(KERN_INFO "pmdfc: GET PAGE success\n");
-		return 1;
+		return 0;
 	}
 
 	return -1;

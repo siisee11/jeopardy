@@ -43,6 +43,15 @@ static inline bool tmem_oid_valid(struct tmem_oid *oidp)
 		oidp->oid[2] != -1UL;
 }
 
+static inline void tmem_oid_print(struct tmem_oid *oidp)
+{
+	printk(KERN_INFO ".oid[0]=%llu .oid[1]=%llu .oid[2]=%llu\n", 
+			(long long)oidp->oid[0], (long long)oidp->oid[1], (long long)oidp->oid[2]);
+}
+
+/*
+ * If same return 0
+ */
 static inline int tmem_oid_compare(struct tmem_oid *left,
 					struct tmem_oid *right)
 {
