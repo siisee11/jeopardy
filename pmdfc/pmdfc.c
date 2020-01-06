@@ -29,7 +29,7 @@ static void pmdfc_cleancache_put_page(int pool_id,
 				(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
 		printk(KERN_INFO "pmdfc: PUT PAGE success\n");
 		coid = oid;
-		page_pool = page;
+		*page_pool = *page;
 		tmem_oid_print(&coid);
 	}
 }
@@ -45,7 +45,7 @@ static int pmdfc_cleancache_get_page(int pool_id,
 //			(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
 
 	if ( tmem_oid_compare(&coid, &oid) == 0) {
-		page = page_pool;
+		*page = *page_pool;
 		printk(KERN_INFO "pmdfc: GET PAGE success\n");
 		return 0;
 	}
