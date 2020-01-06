@@ -49,7 +49,7 @@ invalidates :
 1278095
 ```
 
-The first page succeed to put page. But, when succeedn get system die.
+The first page succeed to put page. But, when succeed get system die.
 ```
 [   49.415492] >> pmdfc: cleancache_register_ops success
 [   49.415493] >> pmdfc: cleancache_enabled
@@ -57,6 +57,13 @@ The first page succeed to put page. But, when succeedn get system die.
 [   82.280058] pmdfc: PUT PAGE success
 ```
 
+## Tries
+
+```
+page = page_pool									/* sometimes success */
+*page = *page_pool									/* always hang */
+mempcy(page, page_pool, sizeof(struct page))		/* always hang */
+```
 
 
 ## Errors
