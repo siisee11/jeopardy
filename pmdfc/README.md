@@ -85,5 +85,7 @@ kunmap_atomic(pg)
 ## Questions
 
 * page pointers are different but key is same why?
+--> Key is from inode number or file handle, so the key is not unique for each page but for file.
 
 * How to print key value?
+--> It is easy. See pmdfc.c
