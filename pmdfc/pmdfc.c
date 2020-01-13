@@ -18,7 +18,7 @@ struct page* page_pool;
 struct tmem_oid coid = {.oid[0]=-1UL, .oid[1]=-1UL, .oid[2]=-1UL};
 
 /* Global count */
-int cnt = 0;
+atomic_t v = ATOMIC_INIT(0);
 
 /*  Clean cache operations implementation */
 static void pmdfc_cleancache_put_page(int pool_id,
@@ -43,6 +43,9 @@ static void pmdfc_cleancache_put_page(int pool_id,
 		pg = kmap_atomic(page_pool);
 		memcpy(pg, to, sizeof(struct page));
 		kunmap_atomic(pg);
+
+		/* atomic increase value */
+		atomic_inc(&v);
 	}
 }
 
@@ -59,8 +62,8 @@ static int pmdfc_cleancache_get_page(int pool_id,
 //	printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
 //			(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
 
-	if ( tmem_oid_compare(&coid, &oid) == 1 && cnt == 0) {
-		cnt++;
+	if ( tmem_oid_compare(&coid, &oid) == 1 && atomic_read(&v) == 1 ) {
+		atomic_inc(&v);
 		printk(KERN_INFO "pmdfc: GET PAGE start\n");
 		to_va = kmap_atomic(page);
 		from_va = kmap_atomic(page_pool);
