@@ -17,20 +17,32 @@ struct page* page_pool;
 /* Currently handled oid */
 struct tmem_oid coid = {.oid[0]=-1UL, .oid[1]=-1UL, .oid[2]=-1UL};
 
+/* Global count */
+int cnt = 0;
+
 /*  Clean cache operations implementation */
 static void pmdfc_cleancache_put_page(int pool_id,
 					struct cleancache_filekey key,
 					pgoff_t index, struct page *page)
 {
 	struct tmem_oid oid = *(struct tmem_oid *)&key;
+	void *pg;
+	char *to;
 
 	if (!tmem_oid_valid(&coid)) {
 		printk(KERN_INFO "pmdfc: PUT PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
 				(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
 		printk(KERN_INFO "pmdfc: PUT PAGE success\n");
-		coid = oid;
-		*page_pool = *page;
 		tmem_oid_print(&coid);
+		coid = oid;
+
+		pg = kmap_atomic(page);
+		memcpy(to, pg, sizeof(struct page));
+		kunmap_atomic(pg);
+
+		pg = kmap_atomic(page_pool);
+		memcpy(pg, to, sizeof(struct page));
+		kunmap_atomic(pg);
 	}
 }
 
@@ -40,12 +52,24 @@ static int pmdfc_cleancache_get_page(int pool_id,
 {
 	u32 ind = (u32) index;
 	struct tmem_oid oid = *(struct tmem_oid *)&key;
+	char *from_va;
+	char *to_va;
+	void *pg;
 	
 //	printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
 //			(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
 
-	if ( tmem_oid_compare(&coid, &oid) == 0) {
-		*page = *page_pool;
+	if ( tmem_oid_compare(&coid, &oid) == 1 && cnt == 0) {
+		cnt++;
+		printk(KERN_INFO "pmdfc: GET PAGE start\n");
+		to_va = kmap_atomic(page);
+		from_va = kmap_atomic(page_pool);
+		
+		memcpy(to_va, from_va, sizeof(struct page));
+
+		kunmap_atomic(to_va);
+		kunmap_atomic(from_va);
+
 		printk(KERN_INFO "pmdfc: GET PAGE success\n");
 		return 0;
 	}

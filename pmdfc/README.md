@@ -65,6 +65,14 @@ page = page_pool									/* sometimes success */
 mempcy(page, page_pool, sizeof(struct page))		/* always hang */
 ```
 
+Next try!
+
+```
+pg = kmap_atomic(page)
+memcpy(to, page, sizeof(page)
+kunmap_atomic(pg)
+```
+
 
 ## Errors
 
