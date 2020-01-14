@@ -135,7 +135,8 @@ static int __init pmdfc_init(void)
 	int ret;
 
 	printk(KERN_INFO ">> pmdfc INIT\n");
-	page_pool = alloc_pages(pmdfc_GFP_MASK, pmdfc_ORDER);
+//	page_pool = alloc_pages(pmdfc_GFP_MASK, pmdfc_ORDER);
+	page_pool = alloc_page(pmdfc_GFP_MASK);
 
 	ret = pmdfc_cleancache_register_ops();
 
