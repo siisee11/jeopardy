@@ -26,23 +26,22 @@ static void pmdfc_cleancache_put_page(int pool_id,
 					pgoff_t index, struct page *page)
 {
 	struct tmem_oid oid = *(struct tmem_oid *)&key;
-	void *pg;
+	void *pg_from;
+	void *pg_to;
 	char *to;
 
 	if (!tmem_oid_valid(&coid)) {
 		printk(KERN_INFO "pmdfc: PUT PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
 				(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
-		printk(KERN_INFO "pmdfc: PUT PAGE success\n");
-		tmem_oid_print(&coid);
+k	printk(KERN_INFO "pmdfc: PUT PAGE success\n");
 		coid = oid;
+		tmem_oid_print(&coid);
 
-		pg = kmap_atomic(page);
-		memcpy(to, pg, sizeof(struct page));
-		kunmap_atomic(pg);
-
-		pg = kmap_atomic(page_pool);
-		memcpy(pg, to, sizeof(struct page));
-		kunmap_atomic(pg);
+		pg_from = kmap_atomic(page);
+		pg_to = kmap_atomic(page_pool);
+		memcpy(pg_to, pg_from, sizeof(struct page));
+		kunmap_atomic(pg_from);
+		kunmap_atomic(pg_to);
 	}
 }
 
