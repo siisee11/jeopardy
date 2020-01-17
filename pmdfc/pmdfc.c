@@ -33,7 +33,7 @@ static void pmdfc_cleancache_put_page(int pool_id,
 	if (!tmem_oid_valid(&coid)) {
 		printk(KERN_INFO "pmdfc: PUT PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
 				(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
-k	printk(KERN_INFO "pmdfc: PUT PAGE success\n");
+		printk(KERN_INFO "pmdfc: PUT PAGE success\n");
 		coid = oid;
 		tmem_oid_print(&coid);
 
