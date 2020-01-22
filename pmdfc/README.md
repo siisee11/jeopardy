@@ -40,7 +40,7 @@ After run spark benchmark
 
 ```
 succ_gets :
-0
+1
 failed_gets :
 2161414
 puts :
@@ -49,13 +49,7 @@ invalidates :
 1278095
 ```
 
-The first page succeed to put page. But, when succeed get system die.
-```
-[   49.415492] >> pmdfc: cleancache_register_ops success
-[   49.415493] >> pmdfc: cleancache_enabled
-[   82.280056] pmdfc: PUT PAGE pool_id=1 key=917931 index=375 page=000000008a88ba8d
-[   82.280058] pmdfc: PUT PAGE success
-```
+Succeed
 
 ## Tries
 
@@ -72,6 +66,8 @@ pg = kmap_atomic(page)
 memcpy(to, page, sizeof(page)
 kunmap_atomic(pg)
 ```
+
+I works!
 
 
 ## Errors
