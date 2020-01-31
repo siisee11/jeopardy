@@ -67,7 +67,7 @@ memcpy(to, page, sizeof(page)
 kunmap_atomic(pg)
 ```
 
-I works!
+It works!
 
 
 ## Errors
@@ -85,3 +85,7 @@ I works!
 
 * How to print key value?
 --> It is easy. See pmdfc.c
+
+## Reference
+
+[Server side codes](https://github.com/byeongkeonLee/PM_disaggregated_serverside)
