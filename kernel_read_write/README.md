@@ -1,5 +1,5 @@
-# Don't Do this
+# Read file from kernel
 
-## Write and read file from kernel
+## Env
 
-It fails.
+linux5.3

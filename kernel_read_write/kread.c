@@ -1,32 +1,47 @@
-#include <linux/kernel.h>
+#include <linux/module.h>  // Needed by all modules
+#include <linux/kernel.h>  // Needed for KERN_INFO
+#include <linux/fs.h>      // Needed by filp
+#include <asm/uaccess.h>   // Needed by segment descriptors
 #include <linux/init.h>
-#include <linux/module.h>
-#include <linux/syscalls.h>
-#include <linux/fcntl.h>
-#include <asm/uaccess.h>
-static void read_file(char *filename)
-{
-  struct file *fd;
-  char buf[1];
-  mm_segment_t old_fs = get_fs();
-  set_fs(KERNEL_DS);
-  fd = filp_open(filename, O_RDONLY, 0);
-  if (fd >= 0) {
-    printk(KERN_DEBUG);
-    while (vfs_read(fd, buf, 1, 0) == 1)
-      printk("%c", buf[0]);
-    printk("\n");
-    filp_close(fd, 0);
-  }
-  set_fs(old_fs);
-}
+
 static int __init init(void)
 {
-  read_file("/etc/shadow");
-  return 0;
+    // Create variables
+    struct file *f;
+    char buf[128];
+    mm_segment_t fs;
+    int i;
+    // Init the buffer with 0
+    for(i=0;i<128;i++)
+        buf[i] = 0;
+    // To see in /var/log/messages that the module is operating
+    printk(KERN_INFO "My module is loaded\n");
+    // I am using Fedora and for the test I have chosen following file
+    // Obviously it is much smaller than the 128 bytes, but hell with it =)
+    f = filp_open("/etc/fedora-release", O_RDONLY, 0);
+    if(f == NULL)
+        printk(KERN_ALERT "filp_open error!!.\n");
+    else{
+        // Get current segment descriptor
+        fs = get_fs();
+        // Set segment descriptor associated to kernel space
+		set_fs(KERNEL_DS);
+        // Read the file
+        f->f_op->read(f, buf, 128, &f->f_pos);
+        // Restore segment descriptor
+        set_fs(fs);
+        // See what we read from file
+        printk(KERN_INFO "buf:%s\n",buf);
+    }
+    filp_close(f,NULL);
+    return 0;
 }
+
 static void __exit exit(void)
-{ }
+{
+    printk(KERN_INFO "My module is unloaded\n");
+}
+
 MODULE_LICENSE("GPL");
 module_init(init);
 module_exit(exit);
