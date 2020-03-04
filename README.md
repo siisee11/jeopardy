@@ -23,6 +23,8 @@ use ndctl to make /dev/pmem0 with option --mode=fsdax
 
 2019/12/30 - merge JIFS repository into this.
 
+2020/03/04 - create settings directory (my personal environment settings)
+
 
 ## reference
 
