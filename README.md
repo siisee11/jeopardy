@@ -28,4 +28,7 @@ use ndctl to make /dev/pmem0 with option --mode=fsdax
 
 ## reference
 
-[Change Kernel on ubuntu](https://medium.com/@siisee111/virtual-ubuntu-%ED%8A%B9%EC%A0%95-%EB%B2%84%EC%A0%84%EC%9C%BC%EB%A1%9C-%EC%BB%A4%EB%84%90-%EB%B2%84%EC%A0%84-%EB%B0%94%EA%BE%B8%EA%B8%B0-e5555ffc2121)
+[How to change kernel version on ubuntu](https://namj.be/2019-12-29-ubuntu-kernel-version/)
+[How to use KGDB for debug](https://namj.be/kgdb/2020-01-24-kgdb/)
+[How to debug your own kernel module with KGDB](https://namj.be/kgdb/2020-02-21-kgdb-module/)
+[About ftrace](https://namj.be/2020-02-10-ftrace/2020-02-10-ftrace/)
