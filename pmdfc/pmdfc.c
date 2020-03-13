@@ -6,10 +6,10 @@
 #include "tmem.h"
 
 /* Allocation flags */
-#define pmdfc_GFP_MASK  (GFP_ATOMIC | __GFP_NORETRY | __GFP_NOWARN)
+#define PMDFC_GFP_MASK  (GFP_ATOMIC | __GFP_NORETRY | __GFP_NOWARN)
 
 /* Initial page pool: 32 MB (2^13 * 4KB) in pages */
-#define pmdfc_ORDER 13
+#define PMDFC_ORDER 13
 
 /* The pool holding the compressed pages */
 struct page* page_pool;
@@ -55,8 +55,8 @@ static int pmdfc_cleancache_get_page(int pool_id,
 	char *to_va;
 	void *pg;
 	
-//	printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
-//			(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
+	printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
+			(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
 
 	if ( tmem_oid_compare(&coid, &oid) == 0 && atomic_read(&v) == 0 ) {
 		atomic_inc(&v);
@@ -134,8 +134,7 @@ static int __init pmdfc_init(void)
 	int ret;
 
 	printk(KERN_INFO ">> pmdfc INIT\n");
-//	page_pool = alloc_pages(pmdfc_GFP_MASK, pmdfc_ORDER);
-	page_pool = alloc_page(pmdfc_GFP_MASK);
+	page_pool = alloc_pages(PMDFC_GFP_MASK, PMDFC_ORDER);
 
 	ret = pmdfc_cleancache_register_ops();
 
