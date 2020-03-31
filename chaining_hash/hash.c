@@ -6,6 +6,18 @@
 #include "hash.h"
 #include "error.h"
 
+struct head *
+head_alloc(struct hash *h)
+{
+	struct head *ret = NULL;
+
+	ret = (struct head *)calloc(1, sizeof(struct head));
+
+	printv(3, "%s()::head pointer alloced\n",__func__);
+
+	return ret;
+}
+
 struct hash_node *
 hash_node_alloc(struct hash *h)
 {
@@ -45,10 +57,12 @@ struct hash* hash_extend(struct hash *h)
 
 int hash_get(struct hash *h, unsigned long key, struct hash_node **nodep) 
 {
+	struct head *head_node;
 	int hashIndex = hashCode(h, key);  
 
 	if (h->slots[hashIndex] != NULL) {
-		*nodep = h->slots[hashIndex];
+		head_node = rcu_dereference_raw(h->slots[hashIndex]);
+		*nodep = head_node->node;
 		return 1;
 	}
 
@@ -72,23 +86,25 @@ void *hash_lookup(struct hash *h, unsigned long key)
 static int __hash_create(struct hash *h,
 		unsigned long index, struct hash_node __rcu **nodep)
 {
-	struct hash_node *head_node = rcu_dereference_raw(h->slots[index]);
+	struct head *head = rcu_dereference_raw(h->slots[index]);
+	struct hash_node *head_node;
 	struct hash_node *node = NULL;
 
-	printv(3, "%s()::head_node%p\n", __func__, head_node);
+	printv(3, "%s()::head%p\n", __func__, head);
 
-	if (head_node)
+	if (head)
 	{
+		head_node = rcu_dereference_raw(head->node);	
 		node = hash_node_alloc(h);
 		list_add_tail( &(node->list), &(head_node->list) );
 	}
 	else
 	{
-		head_node = hash_node_alloc(h);
-		INIT_LIST_HEAD(&head_node->list);
-		rcu_assign_pointer(h->slots[index], head_node);
+		head = head_alloc(h);
+		rcu_assign_pointer(h->slots[index], head);
 		node = hash_node_alloc(h);
-		list_add_tail( &(node->list), &(head_node->list) );
+		INIT_LIST_HEAD(&node->list);
+		rcu_assign_pointer(head->node, node);
 	}
 
 	if (nodep)
@@ -134,6 +150,7 @@ void display(struct hash *h) {
 	for(i = 0; i< h->size; i++) {
 		if (hash_get(h, i, &node))
 		{
+			printv(3, "(%d, %p) --> ", i, node->item);
 			list_for_each(p, &node->list) {
 				tmp = list_entry(p, struct hash_node, list);
 				printv(3, "(%d, %p) --> ", i, tmp->item);
@@ -146,4 +163,3 @@ void display(struct hash *h) {
 
 	printf("\n");
 }
-

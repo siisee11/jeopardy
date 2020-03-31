@@ -1,6 +1,8 @@
 #ifndef _LINUX_LIST_H
 #define _LINUX_LIST_H
 
+#include <stdint.h>
+
 /**
  * @name from other kernel headers
  */
@@ -42,7 +44,16 @@
  * using the generic single-entry routines.
  */
 struct list_head {
-	struct list_head *next, *prev;
+	union {
+		struct {
+			uint64_t addr : 48;
+			unsigned short counter : 14;
+			unsigned short occupied : 1;
+			unsigned short rehash : 1;
+		};
+		struct list_head *next;
+	};
+	struct list_head *prev;
 };
 
 #define LIST_HEAD_INIT(name) { &(name), &(name) }

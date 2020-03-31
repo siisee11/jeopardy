@@ -3,8 +3,13 @@
 
 #include <stdbool.h> 
 #include <stdio.h>
+#include <stdint.h>
 #include "list.h"
 #include "rcupdate.h"
+
+struct uint48 {
+	    uint64_t x:48;
+} __attribute__((packed));
 
 int kmalloc_verbose;
 int test_verbose;
@@ -22,6 +27,17 @@ struct hash_iter {
 	unsigned long	next_index;
 	struct hash_node *node;
 };
+
+struct head {
+	union {
+		struct {
+			struct uint48 __rcu addr;
+			unsigned short counter : 15;  	/* counter */
+			unsigned short active : 1; 		/* active bit */
+		};
+		struct hash_node *node;
+	};
+} __attribute__((packed));
 
 struct hash {
 	unsigned long size;

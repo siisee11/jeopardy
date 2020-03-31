@@ -145,8 +145,12 @@ void benchmark() {
 
 	printv(1, "starting benchmarks\n");
 
+	/*
 	for (c = 0; size[c]; c++)
 		for (s = 0; step[s]; s++)
 			benchmark_size(size[c], step[s]);
+	*/
+	my_benchmark();
 
+	printv(1, "benchmarks finished.\n");
 }
