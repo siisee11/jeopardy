@@ -84,23 +84,30 @@ int hash_get(struct hash *h, unsigned long key, struct hash_node **nodep)
 	struct head *head_pointer;
 	struct hash_node *tmp, *head_node;
 	struct list_head *p;
+
+	volatile uintptr_t iptr;
+	unsigned long *ptr;
 	int hashIndex = hashCode(h, key);  
 
 	nr_request++;
 
 	if (h->slots[hashIndex] != NULL) {
 		head_pointer = rcu_dereference_raw(h->slots[hashIndex]);
-		head_pointer.counter++;
-		head_node = rcu_dereference_raw(head_pointer->node);
+		head_pointer->counter++;
+
+		iptr = head_pointer->addr;
+		*ptr = (unsigned long *)iptr;
+
+		head_node = rcu_dereference_raw(ptr);
 		if (head_node->key == key) {
-			head_node.counter++;
+			head_node->list.counter++;
 			*nodep = head_node;
 			goto keep_hot;
 		} else {
 			list_for_each(p, &head_node->list) {
 				tmp = list_entry(p, struct hash_node, list);
 				if (tmp->key == key) {
-					tmp.counter++;
+					tmp->list.counter++;
 					*nodep = tmp;
 					goto access_cold;
 				}
@@ -218,7 +225,7 @@ void display(struct hash *h) {
 
 void hotspot_shift(struct head *head, struct hash_node *node) {
 	/* Set Active bit */
-	head.active = 1;
+	head->active = 1;
 	printv(3, "%s()::head= %p, node= %p\n", __func__, head, node);
 	return;
 }

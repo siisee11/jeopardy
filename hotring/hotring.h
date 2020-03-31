@@ -32,7 +32,7 @@ struct hash_iter {
 struct head {
 	union {
 		struct {
-			struct uint48 __rcu addr;
+			uint64_t __rcu addr : 48;
 			unsigned short counter : 15;  	/* counter */
 			unsigned short active : 1; 		/* active bit */
 		};
