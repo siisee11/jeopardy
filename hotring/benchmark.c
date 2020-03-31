@@ -131,7 +131,6 @@ void my_benchmark() {
     for (i = 0; i < ARRAY_SIZE(indices); i++)
         hash_insert(h, indices[i], (void *)item[i]);
 
-//   display(h);
 
 	struct hash_node *node = NULL;
 
@@ -139,6 +138,8 @@ void my_benchmark() {
 	for (i = 0; i < ARRAY_SIZE(indices); i++)
 		for (j = 0; j <= i; j++)
 			hash_get(h, indices[i], &node); 
+
+	display(h);
 
    return;
 }

@@ -68,11 +68,18 @@ static int hash_get_first(struct hash *h, unsigned long key, struct hash_node **
 	struct head *head_pointer;
 	struct hash_node *tmp, *head_node;
 	struct list_head *p;
+
+	volatile uintptr_t iptr;
+	unsigned long *ptr;
 	int hashIndex = hashCode(h, key);  
 
 	if (h->slots[hashIndex] != NULL) {
 		head_pointer = rcu_dereference_raw(h->slots[hashIndex]);
-		head_node = rcu_dereference_raw(head_pointer->node);
+
+		iptr = head_pointer->addr;
+		ptr = (unsigned long *)iptr;
+
+		head_node = rcu_dereference_raw(ptr);
 		*nodep = head_node;
 		return 1;
 	}
@@ -96,7 +103,7 @@ int hash_get(struct hash *h, unsigned long key, struct hash_node **nodep)
 		head_pointer->counter++;
 
 		iptr = head_pointer->addr;
-		*ptr = (unsigned long *)iptr;
+		ptr = (unsigned long *)iptr;
 
 		head_node = rcu_dereference_raw(ptr);
 		if (head_node->key == key) {
@@ -155,7 +162,7 @@ static int __hash_create(struct hash *h,
 	{
 		head_node = rcu_dereference_raw(head->node);	
 		node = hash_node_alloc(h);
-		list_add_tail( &(node->list), &(head_node->list) );
+		list_add( &(node->list), &(head_node->list) );
 	}
 	else
 	{

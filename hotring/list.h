@@ -65,6 +65,8 @@ struct list_head {
 	(ptr)->next = (ptr); (ptr)->prev = (ptr); \
 } while (0)
 
+
+
 /*
  * Insert a new entry between two known consecutive entries.
  *
@@ -75,10 +77,11 @@ static inline void __list_add(struct list_head *new,
 			      struct list_head *prev,
 			      struct list_head *next)
 {
+	uintptr_t new_addr = (uintptr_t)new;
 	next->prev = new;
 	new->next = next;
 	new->prev = prev;
-	prev->next = new;
+	prev->addr = new_addr;
 }
 
 /**
@@ -219,6 +222,11 @@ static inline void list_splice_init(struct list_head *list,
 	}
 }
 
+static inline void *__iptr_to_ptr(uintptr_t iptr){
+	unsigned long *ptr = (unsigned long *)iptr;
+	return (void *)ptr;
+}
+
 /**
  * list_entry - get the struct for this entry
  * @ptr:	the &struct list_head pointer.
@@ -235,8 +243,8 @@ static inline void list_splice_init(struct list_head *list,
  */
 
 #define list_for_each(pos, head) \
-  for (pos = (head)->next; pos != (head);	\
-       pos = pos->next)
+  for (pos = __iptr_to_ptr((head)->addr); pos != (head);	\
+       pos = __iptr_to_ptr(pos->addr))
 
 /**
  * __list_for_each	-	iterate over a list
