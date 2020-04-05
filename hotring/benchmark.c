@@ -121,8 +121,8 @@ static void benchmark_size(unsigned long size, unsigned long step)
 
 
 void my_benchmark() {
-    unsigned long indices[5] = {2, 6, 22, 37, 65};
-	unsigned long item[5] = {2, 6, 22, 37, 65};
+    unsigned long indices[6] = {2, 6, 22, 37, 65, 42};
+	unsigned long item[6] = {2, 6, 22, 37, 65, 42};
 
 	struct hash *h = hash_alloc(20);	
 
@@ -131,14 +131,17 @@ void my_benchmark() {
     for (i = 0; i < ARRAY_SIZE(indices); i++)
         hash_insert(h, indices[i], (void *)item[i]);
 
-
 	struct hash_node *node = NULL;
+	struct hash_node *prev = NULL;
 
 	int j;
 	for (i = 0; i < ARRAY_SIZE(indices); i++)
 		for (j = 0; j <= i; j++)
-			hash_get(h, indices[i], &node); 
+			hash_get(h, indices[i], &node, &prev); 
 
+	display(h);
+
+	hotring_delete(h, 37);
 	display(h);
 
    return;

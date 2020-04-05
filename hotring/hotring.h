@@ -46,8 +46,11 @@ struct hash {
 };
 
 struct hash_node {
-	struct list_head list;
-	unsigned int tag;
+	union {
+		struct list_head list;
+		struct rcu_head rcu_head;
+	};
+	unsigned long tag;
 	unsigned long key;
 	void *value;
 };
@@ -58,15 +61,17 @@ struct item {
 };
 
 /* hash function */
-static inline int hashCode(struct hash *h, int key) {
-   return key % (h->size);
+static inline unsigned long hashCode(struct hash *h, unsigned long key, unsigned long *tag) {
+	*tag = key / (h->size);
+	return key % (h->size);
 }
 
 struct hash *hash_alloc(unsigned long size);
 int hash_insert(struct hash *, unsigned long index, void *);
 int hash_get(struct hash*, unsigned long index,
-			  struct hash_node **nodep);
+			  struct hash_node **, struct hash_node **);
 void *hash_lookup(struct hash*, unsigned long index);
+bool hotring_delete(struct hash*, unsigned long );
 void display(struct hash *);
 void hotspot_shift(struct head *, struct hash_node *);
 
