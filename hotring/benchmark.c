@@ -121,15 +121,17 @@ static void benchmark_size(unsigned long size, unsigned long step)
 
 
 void my_benchmark() {
-    unsigned long indices[6] = {2, 6, 22, 37, 65, 42};
-	unsigned long item[6] = {2, 6, 22, 37, 65, 42};
+    unsigned long indices[12] = {2, 6, 22, 37, 65, 42, 60, 88, 87, 11, 16, 18};
+	unsigned long item[12] = {2, 6, 22, 37, 65, 42, 60, 88, 87, 11, 16, 18};
 
-	struct hash *h = hash_alloc(20);	
+	struct hash *h = hash_alloc(16);	
 
 	/* Construct Radix Tree */
     int i;
     for (i = 0; i < ARRAY_SIZE(indices); i++)
         hash_insert(h, indices[i], (void *)item[i]);
+
+	display(h);
 
 	struct hash_node *node = NULL;
 	struct hash_node *prev = NULL;
@@ -143,6 +145,8 @@ void my_benchmark() {
 
 	hotring_delete(h, 37);
 	display(h);
+
+//	hotring_rehash(h);
 
    return;
 }

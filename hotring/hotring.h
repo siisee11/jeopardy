@@ -74,6 +74,7 @@ void *hash_lookup(struct hash*, unsigned long index);
 bool hotring_delete(struct hash*, unsigned long );
 void display(struct hash *);
 void hotspot_shift(struct head *, struct hash_node *);
+struct hash *hotring_rehash(struct hash *);
 
 /**
  * hash_iter_init - initialize radix tree iterator

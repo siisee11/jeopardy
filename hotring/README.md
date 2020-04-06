@@ -1,10 +1,11 @@
 # HOTRING
 
-[x] hotring_insert
-[x] hotring_get
-[x] hotring_delete
-
-
+## TODO
+  - [x] ~~hotring_insert~~
+  - [x] ~~hotring_get~~
+  - [x] ~~hotring_delete~~
+  - [ ] hotring_rehash
+  - [ ] rehash condition
 
 
 ## reference
