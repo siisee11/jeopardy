@@ -141,6 +141,9 @@ void my_benchmark() {
 		for (j = 0; j <= i; j++)
 			hash_get(h, indices[i], &node, &prev); 
 
+	if (hash_get(h, 21, &node, &prev) == 0)
+		printv(2, "hash_get failed!!");
+
 	display(h);
 
 	hotring_delete(h, 37);

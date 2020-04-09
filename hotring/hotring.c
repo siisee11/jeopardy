@@ -131,7 +131,7 @@ static int __hash_get_last(struct hash *h, unsigned long key, struct hash_node *
 static int __hash_get(struct hash *h, unsigned long key, struct hash_node **nodep, struct hash_node **prevp) 
 {
 	struct head *head_pointer;
-	struct hash_node *tmp, *head_node;
+	struct hash_node *tmp, *head_node, *prev;
 	struct list_head *p;
 
 	volatile uintptr_t iptr;
@@ -153,18 +153,26 @@ static int __hash_get(struct hash *h, unsigned long key, struct hash_node **node
 			*nodep = head_node;
 			goto keep_hot;
 		} else {
-			*prevp = head_node;
+			prev = head_node;
 			list_for_each(p, &head_node->list) {
 				tmp = list_entry(p, struct hash_node, list);
 				if (tmp->key == key) {
 					tmp->list.counter++;
 					*nodep = tmp;
+					*prevp = prev;
 					goto access_cold;
 				}
-				*prevp = tmp;
+				if (prev->key < key && tmp->key > key)
+					goto not_found;
+				if (key < tmp->key && tmp->key < prev->key)
+					goto not_found;
+				if (tmp->key < prev->key && prev->key < key)
+					goto not_found;
+				prev = tmp;
 			}
 		}
 	}
+not_found:
 	*prevp = NULL;
 	return 0;
 
@@ -179,6 +187,7 @@ access_cold:
 		nr_request = 0;
 	}
 	return 1;
+
 }
 
 int hash_get(struct hash *h, unsigned long key, struct hash_node **nodep, struct hash_node **prevp) 
