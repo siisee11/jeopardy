@@ -43,7 +43,7 @@ int item_delete(struct hash *h, unsigned long index)
 void item_check_present(struct hash *h, unsigned long index)
 {
 	int error;
-	error = hash_lookup(h, index);
+	return;
 }
 
 struct item *item_lookup(struct hash *h, unsigned long index)

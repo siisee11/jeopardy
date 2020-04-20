@@ -13,7 +13,7 @@ TARGET = a.out
 all : $(TARGET)
 
 run : $(TARGET)
-	./$(TARGET) -v
+	./$(TARGET) -vvv
 
 gdb : $(TARGET)
 	gdb $(TARGET)

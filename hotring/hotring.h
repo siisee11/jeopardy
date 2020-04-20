@@ -8,7 +8,7 @@
 #include "rcupdate.h"
 
 #define NBITS	(32)
-#define INCOME_THRESHOLD	(50)
+#define INCOME_THRESHOLD	(5)
 
 struct uint48 {
 	    uint64_t x:48;
@@ -74,12 +74,10 @@ static inline unsigned long hashCode(struct hash *h, unsigned long key, unsigned
 
 struct hash *hash_alloc(unsigned long, unsigned long );
 int hash_insert(struct hash *, unsigned long , void *);
-int hash_get(struct hash*, unsigned long ,
+int hash_get(struct hash **, unsigned long ,
 			  struct hash_node **, struct hash_node **);
-int hash_lookup(struct hash *, unsigned long);
 bool hotring_delete(struct hash *, unsigned long );
 void display(struct hash *);
-void hotspot_shift(struct hash *, unsigned long , struct hash_node *);
 struct hash *hotring_rehash(struct hash *);
 
 /**

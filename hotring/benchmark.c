@@ -116,6 +116,8 @@ static void benchmark_size(unsigned long size, unsigned long step)
 	benchmark_insert(h, size, step);
 	benchmark_search(h, size, step);
 
+	display(h);
+
 //	benchmark_delete(h, size, step);
 
 //	item_kill_tree(h);
@@ -124,8 +126,8 @@ static void benchmark_size(unsigned long size, unsigned long step)
 
 
 void my_benchmark() {
-    unsigned long indices[12] = {72, 36, 22, 37, 34, 42, 6, 88, 87, 11, 16, 18};
-	unsigned long item[12] = {72, 36, 22, 37, 34, 42, 6, 88, 87, 11, 16, 18};
+    unsigned long indices[12] = {72, 36, 22, 37, 42, 6, 535822335, 87, 11, 16, 18, 1073741823};
+	unsigned long item[12] = {72, 36, 22, 37, 42, 6, 535822335, 87, 11, 16, 18, 1073741823};
 
 	struct hash *h = hash_alloc(NBITS, 3);	
 	struct hash *new;
@@ -143,34 +145,35 @@ void my_benchmark() {
 	int j;
 	for (i = 0; i < ARRAY_SIZE(indices); i++)
 		for (j = 0; j <= i; j++)
-			hash_get(h, indices[i], &node, &prev); 
+			hash_get(&h, indices[i], &node, &prev); 
 
-	if (hash_get(h, 21, &node, &prev) == 0)
+	if (hash_get(&h, 21, &node, &prev) == 0)
 		printv(2, "hash_get key 21 failed!!\n");
 
 	hotring_delete(h, 37);
 	display(h);
-
-	new = hotring_rehash(h);
-	display(new);
 
 	return;
 }
 
 
 void benchmark() {
-	unsigned long size[] = {1 << 10, 0};
-	unsigned long step[] = {1, 2, 7, 15, 63, 64, 65,
-				128, 256, 512, 12345, 0};
+	unsigned long size[] = {1 << 8, 0};
+//	unsigned long step[] = {1, 2, 7, 15, 63, 64, 65,
+//				128, 256, 512, 12345, 0};
+	unsigned long step[] = {1, 0};
 	int c, s;
 
 	printv(1, "starting benchmarks\n");
 
 	my_benchmark();
 
+#if 0
 	for (c = 0; size[c]; c++)
 		for (s = 0; step[s]; s++)
 			benchmark_size(size[c], step[s]);
+#endif
+		
 
 	printv(1, "benchmarks finished.\n");
 }
