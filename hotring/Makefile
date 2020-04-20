@@ -12,6 +12,12 @@ TARGET = a.out
 
 all : $(TARGET)
 
+run : $(TARGET)
+	./$(TARGET) -v
+
+gdb : $(TARGET)
+	gdb $(TARGET)
+
 $(TARGET) : $(OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 

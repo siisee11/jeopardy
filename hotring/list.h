@@ -27,6 +27,16 @@
 
 
 /*
+ * address to pointer
+ */
+static inline void *__iptr_to_ptr(uintptr_t iptr){
+	unsigned long *ptr = (unsigned long *)iptr;
+	return (void *)ptr;
+}
+
+
+
+/*
  * These are non-NULL pointers that will result in page faults
  * under normal circumstances, used to verify that nobody uses
  * non-initialized list entries.
@@ -101,9 +111,14 @@ static inline void list_add(struct list_head *new, struct list_head *head)
  * This is only for internal list manipulation where we know
  * the prev/next entries already!
  */
-static inline void __list_del(struct list_head * prev, struct list_head * next)
+static inline void __list_del(struct list_head * prev, struct list_head *next)
 {
 	prev->next = next;
+}
+
+static inline void __list_del_by_addr(struct list_head * prev, uintptr_t iptr)
+{
+	prev->addr = iptr;
 }
 
 /**
@@ -114,7 +129,7 @@ static inline void __list_del(struct list_head * prev, struct list_head * next)
  */
 static inline void list_del(struct list_head *prev, struct list_head *entry)
 {
-	__list_del(prev, entry->next);
+	__list_del_by_addr(prev, entry->addr);
 	entry->next = LIST_POISON1;
 }
 
@@ -192,10 +207,6 @@ static inline void list_splice_init(struct list_head *list,
 }
 #endif 
 
-static inline void *__iptr_to_ptr(uintptr_t iptr){
-	unsigned long *ptr = (unsigned long *)iptr;
-	return (void *)ptr;
-}
 
 /**
  * list_entry - get the struct for this entry

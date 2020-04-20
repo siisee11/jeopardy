@@ -7,6 +7,9 @@
 #include "list.h"
 #include "rcupdate.h"
 
+#define NBITS	(32)
+#define INCOME_THRESHOLD	(50)
+
 struct uint48 {
 	    uint64_t x:48;
 } __attribute__((packed));
@@ -41,6 +44,8 @@ struct head {
 } __attribute__((packed));
 
 struct hash {
+	unsigned long n;		/* n-bit hash value */
+	unsigned long k;		/* table part */
 	unsigned long size;
 	void __rcu **slots;
 };
@@ -62,18 +67,19 @@ struct item {
 
 /* hash function */
 static inline unsigned long hashCode(struct hash *h, unsigned long key, unsigned long *tag) {
-	*tag = key / (h->size);
-	return key % (h->size);
+	unsigned long hash_value = key % ((unsigned long) 1 << h->n);
+	*tag = hash_value % (1 << (h->n - h->k));
+	return key / (1 << (h->n - h->k));
 }
 
-struct hash *hash_alloc(unsigned long size);
-int hash_insert(struct hash *, unsigned long index, void *);
-int hash_get(struct hash*, unsigned long index,
+struct hash *hash_alloc(unsigned long, unsigned long );
+int hash_insert(struct hash *, unsigned long , void *);
+int hash_get(struct hash*, unsigned long ,
 			  struct hash_node **, struct hash_node **);
-void *hash_lookup(struct hash*, unsigned long index);
-bool hotring_delete(struct hash*, unsigned long );
+int hash_lookup(struct hash *, unsigned long);
+bool hotring_delete(struct hash *, unsigned long );
 void display(struct hash *);
-void hotspot_shift(struct head *, struct hash_node *);
+void hotspot_shift(struct hash *, unsigned long , struct hash_node *);
 struct hash *hotring_rehash(struct hash *);
 
 /**

@@ -50,7 +50,8 @@ static void benchmark_insert(struct hash *h,
 	clock_gettime(CLOCK_MONOTONIC, &start);
 
 	for (index = 0 ; index < size ; index += step)
-		item_insert(h, index);
+        hash_insert(h, index, (void *)index);
+//		item_insert(h, index);
 
 	clock_gettime(CLOCK_MONOTONIC, &finish);
 
@@ -67,11 +68,13 @@ static void benchmark_search(struct hash *h,
 	struct timespec start, finish;
 	unsigned long index;
 	long long nsec;
+	struct hash_node *node, *prev;
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
 
 	for (index = 0 ; index < size ; index += step)
-		item_check_present(h, index);
+		hash_get(h, index, &node, &prev); 
+//		item_check_present(h, index);
 
 	clock_gettime(CLOCK_MONOTONIC, &finish);
 
@@ -107,7 +110,7 @@ static void benchmark_delete(struct hash *h,
 
 static void benchmark_size(unsigned long size, unsigned long step)
 {
-	struct hash *h = hash_alloc(size);
+	struct hash *h = hash_alloc(NBITS, 8);
 	long long normal, tagged;
 
 	benchmark_insert(h, size, step);
@@ -121,10 +124,11 @@ static void benchmark_size(unsigned long size, unsigned long step)
 
 
 void my_benchmark() {
-    unsigned long indices[12] = {2, 6, 22, 37, 65, 42, 60, 88, 87, 11, 16, 18};
-	unsigned long item[12] = {2, 6, 22, 37, 65, 42, 60, 88, 87, 11, 16, 18};
+    unsigned long indices[12] = {72, 36, 22, 37, 34, 42, 6, 88, 87, 11, 16, 18};
+	unsigned long item[12] = {72, 36, 22, 37, 34, 42, 6, 88, 87, 11, 16, 18};
 
-	struct hash *h = hash_alloc(16);	
+	struct hash *h = hash_alloc(NBITS, 3);	
+	struct hash *new;
 
 	/* Construct Radix Tree */
     int i;
@@ -142,33 +146,31 @@ void my_benchmark() {
 			hash_get(h, indices[i], &node, &prev); 
 
 	if (hash_get(h, 21, &node, &prev) == 0)
-		printv(2, "hash_get failed!!");
-
-	display(h);
+		printv(2, "hash_get key 21 failed!!\n");
 
 	hotring_delete(h, 37);
 	display(h);
 
-//	hotring_rehash(h);
+	new = hotring_rehash(h);
+	display(new);
 
-   return;
+	return;
 }
 
 
 void benchmark() {
-	unsigned long size[] = {1 << 10, 1 << 20, 0};
+	unsigned long size[] = {1 << 10, 0};
 	unsigned long step[] = {1, 2, 7, 15, 63, 64, 65,
 				128, 256, 512, 12345, 0};
 	int c, s;
 
 	printv(1, "starting benchmarks\n");
 
-	/*
+	my_benchmark();
+
 	for (c = 0; size[c]; c++)
 		for (s = 0; step[s]; s++)
 			benchmark_size(size[c], step[s]);
-	*/
-	my_benchmark();
 
 	printv(1, "benchmarks finished.\n");
 }

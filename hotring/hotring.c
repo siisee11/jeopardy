@@ -40,19 +40,19 @@ hash_node_alloc(struct hash *h)
 }
 
 struct hash*
-hash_alloc(unsigned long size)
+hash_alloc(unsigned long nbits, unsigned long kbits)
 {
 	struct hash *ret = NULL;
-	struct hash_node *node = NULL;
 
 	ret = (struct hash *)calloc(1, sizeof(struct hash)); 
 
 	if (ret) {
-		ret->size = size;
-		ret->slots = (void *)calloc(size, sizeof(void *));
-		for(int i=0; i<size; i++)
-		{
-			node = NULL;
+		ret->n = nbits;
+		ret->k = kbits;
+		ret->size = (1 << kbits);
+		ret->slots = (void *)calloc(ret->size, sizeof(void *));
+		for (int i = 0 ; i < ret->size ; i++) {
+			ret->slots[i] = NULL;
 		}
 	}
 
@@ -65,27 +65,35 @@ struct hash* hash_extend(struct hash *h)
 }
 
 
-/*
- * Get head node (first node in ring)
- */
-static int __hash_get_first(struct hash *h, unsigned long key, struct hash_node **nodep) 
+static struct hash_node* get_head_node_by_head_pointer(struct head* head_pointer)
 {
-	struct head *head_pointer;
-	struct hash_node *tmp, *head_node;
-	struct list_head *p;
-
 	volatile uintptr_t iptr;
 	unsigned long *ptr;
-	unsigned long hashTag;
-	unsigned long hashIndex = hashCode(h, key, &hashTag);  
 
-	if (h->slots[hashIndex] != NULL) {
-		head_pointer = rcu_dereference_raw(h->slots[hashIndex]);
+	printv(4, "%s()::head %p\n", __func__, head_pointer);
 
+
+	if (head_pointer)
+	{
 		iptr = head_pointer->addr;
 		ptr = (unsigned long *)iptr;
+		return (struct hash_node *)rcu_dereference_raw(ptr);	
+	}
+	else
+		return NULL;
+}
 
-		head_node = (struct hash_node *)rcu_dereference_raw(ptr);
+/*
+ * Get head node(first node in ring) of given index
+ */
+static int __hash_get_first(struct hash *h, unsigned long index, struct hash_node **nodep) 
+{
+	struct head *head_pointer;
+	struct hash_node *head_node;
+
+	if (h->slots[index] != NULL) {
+		head_pointer = rcu_dereference_raw(h->slots[index]);
+		head_node = get_head_node_by_head_pointer(head_pointer);
 		*nodep = head_node;
 		return 1;
 	}
@@ -93,32 +101,35 @@ static int __hash_get_first(struct hash *h, unsigned long key, struct hash_node 
 }
 
 /*
- * Get last node (prev node of first node)
+ * Get largest node (largest key node)
  */
-static int __hash_get_last(struct hash *h, unsigned long key, struct hash_node **nodep) 
+static int __hash_get_largest(struct hash *h, unsigned long hashIndex, struct hash_node **nodep) 
 {
 	struct head *head_pointer;
-	struct hash_node *tmp, *head_node;
+	struct hash_node *prev, *next, *head_node;
 	struct list_head *p;
 
-	volatile uintptr_t iptr;
-	unsigned long *ptr;
 	unsigned long hashTag;
-	unsigned long hashIndex = hashCode(h, key, &hashTag);  
 
 	if (h->slots[hashIndex] != NULL) {
 		head_pointer = rcu_dereference_raw(h->slots[hashIndex]);
+		head_node = get_head_node_by_head_pointer(head_pointer);
 
-		iptr = head_pointer->addr;
-		ptr = (unsigned long *)iptr;
-
-		head_node = (struct hash_node *)rcu_dereference_raw(ptr);
-
+		prev = head_node;
 		list_for_each(p, &head_node->list) {
-			tmp = list_entry(p, struct hash_node, list);
+			next = list_entry(p, struct hash_node, list);
+
+			/* 
+			 * if next node is smaller than prev node,
+			 * it indicates the end of the ring.
+			 */
+			if (prev->tag > next->tag) {
+				break;
+			}
+			prev = next;
+
 		}
-		
-		*nodep = tmp;
+		*nodep = prev;
 		
 		return 1;
 	}
@@ -127,7 +138,13 @@ static int __hash_get_last(struct hash *h, unsigned long key, struct hash_node *
 
 
 
-
+/*
+ * @h : hash
+ * @key : target key
+ * @nodep : node having target key
+ * @prevp : previous node of target node (NULL if accessed node is head node)
+ * @return : 0 on fail, 1 on success
+ */
 static int __hash_get(struct hash *h, unsigned long key, struct hash_node **nodep, struct hash_node **prevp) 
 {
 	struct head *head_pointer;
@@ -143,10 +160,7 @@ static int __hash_get(struct hash *h, unsigned long key, struct hash_node **node
 		head_pointer = rcu_dereference_raw(h->slots[hashIndex]);
 		head_pointer->counter++;
 
-		iptr = head_pointer->addr;
-		ptr = (unsigned long *)iptr;
-
-		head_node = (struct hash_node *)rcu_dereference_raw(ptr);
+		head_node = get_head_node_by_head_pointer(head_pointer);
 		*prevp = NULL;
 		if (head_node->key == key) {
 			head_node->list.counter++;
@@ -176,16 +190,16 @@ not_found:
 	*prevp = NULL;
 	return 0;
 
+access_cold:
+	if (nr_request >= 5) {
+		hotspot_shift(h, hashIndex, head_node);
+		nr_request = 0;
+	}
+
 keep_hot:
 	if (nr_request >= 5)
 		nr_request = 0;
 
-access_cold:
-	if (nr_request >= 5) {
-		hotspot_shift(h->slots[hashIndex], head_node);
-		display(h);
-		nr_request = 0;
-	}
 	return 1;
 
 }
@@ -196,18 +210,11 @@ int hash_get(struct hash *h, unsigned long key, struct hash_node **nodep, struct
 	return __hash_get(h, key, nodep, prevp);
 }
 
-void *hash_lookup(struct hash *h, unsigned long key) 
+int hash_lookup(struct hash *h, unsigned long key) 
 {
-	struct hash_node *node;
-	unsigned long hashTag;
-	unsigned long hashIndex = hashCode(h, key, &hashTag);  
+	struct hash_node *node, *prev;
 
-	if (h->slots[hashIndex] != NULL) {
-		node = h->slots[hashIndex];
-		return &node->value;
-	}
-
-	return NULL;
+	return hash_get(h, key, &node, &prev);
 }
 
 /* index자리에 노드가 있으면 반환, 없으면 생성 */
@@ -215,55 +222,57 @@ static int __hash_create(struct hash *h,
 		unsigned long index, unsigned long tag,
 		struct hash_node __rcu **nodep)
 {
-	struct head *head_pointer = rcu_dereference_raw(h->slots[index]);
+	struct head *head_pointer = NULL; 
 	struct hash_node *head_node, *prev, *next;
 	struct hash_node *node = NULL;
 	struct list_head *p;
 
-	volatile uintptr_t iptr;
-	unsigned long *ptr;
 	bool added = false;
+
+	if ( h->slots[index] ) 
+		head_pointer = rcu_dereference_raw(h->slots[index]);
 
 	printv(3, "%s()::head%p\n", __func__, head_pointer);
 
 
 	if (head_pointer)
 	{
-		iptr = head_pointer->addr;
-		ptr = (unsigned long *)iptr;
-		head_node = (struct hash_node *)rcu_dereference_raw(ptr);	
+		head_node = get_head_node_by_head_pointer(head_pointer);	
 		node = hash_node_alloc(h);
 		/* tag and key comparison */
-		if (tag < head_node->tag)
-		{
-			prev = head_node;
-			/* add before head */	
-			list_for_each(p, &head_node->list) {
-				prev = list_entry(p, struct hash_node, list);
-			}
-			list_add( &(node->list), &(prev->list) );
-		} 
-		else 
-		{
-			prev = head_node;
-			/* if next node's tag is bigger, create node before it. */
-			list_for_each(p, &head_node->list) {
-				next = list_entry(p, struct hash_node, list);
-				if (tag <= next->tag) {
+		prev = head_node;
+		/* add to end of the ring*/	
+		list_for_each(p, &head_node->list) {
+			next = list_entry(p, struct hash_node, list);
+
+			/*
+			 * if next node is smaller than prev node,
+			 * it indicates the end of the ring.
+			 */
+			if (prev->tag > next->tag) {
+				if (tag <= next->tag || prev->tag < tag) {
 					list_add( &(node->list), &(prev->list) );
 					added = true;
 					break;
 				}
-				prev = next;
 			}
 
-			/* if largest tag, create node after it */
-			if (!added)
-				list_add( &(node->list), &(prev->list) ) ;
+			/* check condition (prev->tag < tag <= next->tag) */
+			if (prev->tag < tag && tag <= next->tag){
+				list_add( &(node->list), &(prev->list) );
+				added = true;
+				break;
+			}
+
+			prev = next;
 		}
+		/* if can't succeed, add to last */
+		if (!added)
+			list_add( &(node->list), &(prev->list) );
 	}
 	else
 	{
+		/* Empty bucket */
 		head_pointer = head_alloc(h);
 		rcu_assign_pointer(h->slots[index], head_pointer);
 		node = hash_node_alloc(h);
@@ -296,7 +305,7 @@ int hash_insert(struct hash *h, unsigned long key, void *value)
 	unsigned long hashTag;
 
 	unsigned long hashIndex = hashCode(h, key, &hashTag);
-	printv(3, "%s()::key= %ld, hashIndex= %ld, hashTag= %ld, value= %p\n", __func__, key, hashIndex, hashTag, value);
+	printv(3, "%s()::key= %lx, hashIndex= %lx, hashTag= %lx, value= %p\n", __func__, key, hashIndex, hashTag, value);
 
 	error = __hash_create(h, hashIndex, hashTag, &node);
 	if (error)
@@ -336,13 +345,71 @@ hotring_head_free(struct hash *h, unsigned long key)
 	free(head_pointer);
 }
 
+
+/*
+ * free head_pointer for index bucket
+ * and put NULL instead
+ */
+static inline void
+hotring_head_free_by_index(struct hash *h, unsigned long index)
+{
+	struct head *head_pointer = 
+		rcu_dereference_raw(h->slots[index]);
+
+	h->slots[index] = NULL;
+
+	free(head_pointer);
+}
+
+
 static inline void
 hotring_node_free(struct hash_node *node)
 {
 	free(node);
 //	call_rcu(&node->rcu_head, hotring_node_rcu_free);
-	printv(3, "%s()::key= %ld\n",__func__, node->key);
+	printv(3, "%s()::key= %lx\n",__func__, node->key);
 }
+
+bool hotring_delete_head(struct hash *h, unsigned long index)
+{
+	bool deleted = false;
+
+	struct head *head_pointer = rcu_dereference_raw(h->slots[index]);
+
+	struct hash_node *prev, *head_node, *next_head_node;
+	struct list_head *p;
+
+	head_node = get_head_node_by_head_pointer(head_pointer);
+
+	/* 
+	 * if the dummy node is then only node
+	 * delete it and free head_pointer too
+	 */
+	if (&(head_node->list) == head_node->list.next) {
+		hotring_node_free(head_node);	
+		hotring_head_free_by_index(h, index);
+		return true;
+	}
+
+	/* assign new head node */
+	next_head_node = __iptr_to_ptr(head_node->list.addr);
+	rcu_assign_pointer(head_pointer->node, next_head_node);
+
+	/* get previous node of head_node */
+	list_for_each(p, &head_node->list) {
+		prev = list_entry(p, struct hash_node, list);
+	}
+
+	/* prev->list --> head_node->list.next */
+	list_del( &(prev->list), &(head_node->list) );
+	hotring_node_free(head_node);	
+
+	deleted = true;
+
+	return deleted;
+}
+
+
 
 bool hotring_delete(struct hash *h, unsigned long key)
 {
@@ -356,6 +423,7 @@ bool hotring_delete(struct hash *h, unsigned long key)
 		
 		hotring_node_free(target);	
 
+		/* target was head */
 		if (prev == NULL)
 		{
 			hotring_head_free(h, key);
@@ -370,34 +438,43 @@ static struct hash *hotring_rehash_init(struct hash *h)
 {
 	struct hash *new;
 	struct hash_node *node;
+	struct head *head_pointer;
 	int i, error;
 
-	int hash_tag_bits = 64 - h->size;		// (48)
-	unsigned long maxTag = ( (ULONG_MAX - 1) >> h->size );
+	int hash_tag_bits = h->n - h->k;	
+	unsigned long maxTag = ( (unsigned long) 1 << hash_tag_bits) - 1;
+	unsigned long halfTag =  (unsigned long) 1 << (hash_tag_bits - 1);
 
-	new = hash_alloc(2 * h->size);
+	new = hash_alloc(NBITS, h->k + 1);
 
-	printv(3, "%s()::maxTag= %ld\n", __func__, maxTag);
+	printv(3, "%s()::maxTag= %lx\n", __func__, maxTag);
 
+	/*
+	 * Insert two milestone
+	 * The order of insertion should not be modified.
+	 */
 	for ( i = 0 ; i < h->size ; i++){
-		/* insert tag 0 node */
-		node = hash_node_alloc(h);
-		error = __hash_create(h, i, 0, &node);
-		error = insert_entries(node, 0, 0, NULL, false);
-		rcu_assign_pointer(new->slots[(i << 1) + 0], node);
+		if ( h->slots[i] ) {
+			/* insert tag T/2 node */
+			error = __hash_create(h, i, halfTag, &node);
+			error = insert_entries(node, (i << hash_tag_bits) + halfTag, halfTag, NULL, false);
+			head_pointer = head_alloc(new);
+			rcu_assign_pointer(new->slots[i * 2 + 1], head_pointer);
+			rcu_assign_pointer(head_pointer->node, node);
 
-		/* insert tag T/2 node */
-		node = hash_node_alloc(h);
-		error = __hash_create(h, i, maxTag/2, &node);
-		error = insert_entries(node, 0, maxTag/2, NULL, false);
-		rcu_assign_pointer(new->slots[(i << 1) + 1], node);
+			/* insert tag 0 node */
+			error = __hash_create(h, i, 0, &node);
+			error = insert_entries(node, i << hash_tag_bits, 0, NULL, false);
+			head_pointer = head_alloc(new);
+			rcu_assign_pointer(new->slots[i * 2], head_pointer);
+			rcu_assign_pointer(head_pointer->node, node);
+		}
 	}
 
 	return new;
 }
 
 
-/* TODO: Make it correct */
 struct hash *hotring_rehash(struct hash *h)
 {
 	struct hash *new;
@@ -407,26 +484,24 @@ struct hash *hotring_rehash(struct hash *h)
 	new = hotring_rehash_init(h);
 
 	/* Split */
+	int hash_tag_bits = h->n - h->k;
+	unsigned long halfTag =  (unsigned long) 1 << (hash_tag_bits - 1);
+
 	int i;
-	int hash_tag_bits = 64 - h->size;
-	unsigned long maxTag = (1 << hash_tag_bits) - 1;
-
 	for (i = 0 ; i < h->size; i++){
-		__hash_get_first(h, i, &ring1_head);
-		__hash_get_last(h, i, &ring2_tail);
-		__hash_get(h, i + (maxTag << h->size), &ring1_tail, &ring2_head);
+		if ( h->slots[i] ){
+			__hash_get(h, (i << hash_tag_bits), &ring1_head, &ring2_tail);
+			__hash_get(h, (i << hash_tag_bits) + halfTag , &ring2_head, &ring1_tail);
+			ring1_tail->list.next = &ring1_head->list;
+			ring2_tail->list.next = &ring2_head->list;
+		}
 	}
-
-	/*
-	rcu_assign_pointer(ring1_tail->list.next, ring1_head);
-	rcu_assign_pointer(ring2_tail->list.next, ring2_head);
-	*/
-	ring1_tail->list.next = &ring1_head->list;
-	ring2_tail->list.next = &ring2_head->list;
 
 	/* Deletion */
 	for (i = 0 ; i < new->size; i++){
-		hotring_delete(new, i);
+		if ( new->slots[i] ) {
+			hotring_delete_head(new, i);
+		}
 	}
 
 	return new;
@@ -439,11 +514,12 @@ void display(struct hash *h) {
 	struct list_head *p;
 
 	for(i = 0; i< h->size; i++) {
+		printv(3, "[%d] ", i);
 		if (__hash_get_first(h, i, &node)) {
-			printv(3, "(%d, %p) \t--> ", i, node->value);
+			printv(3, "(%lx, %lx, %p) \t--> ", node->key, node->tag, node->value);
 			list_for_each(p, &node->list) {
 				tmp = list_entry(p, struct hash_node, list);
-				printv(3, "(%d, %p) \t--> ", i, tmp->value);
+				printv(3, "(%lx, %lx, %p) \t--> ", tmp->key, tmp->tag, tmp->value);
 			}
 			printv(3, "\n");
 		}
@@ -454,12 +530,22 @@ void display(struct hash *h) {
 }
 	
 
-void hotspot_shift(struct head *head, struct hash_node *head_node) {
+/* possible outcome of hotspot_shift() */
+typedef enum {
+	SHIFT_REHASH,
+	SHIFT_SUCCESS,
+} hotspot_shift_t;
+
+/*
+ * hotspot_shift is called by hash_get()
+ * if current access is cold access
+ */
+static hotspot_shift_t do_hotspot_shift(struct head *head, struct hash_node *head_node) {
 	/* Set Active bit */
 	head->active = 1;
 
 	double total_counter = head->counter;
-	double counters[10] = {0,};
+	double counters[100000] = {0,};
 
 	double min_income = 1000000000;
 	double income = 0;
@@ -487,6 +573,7 @@ void hotspot_shift(struct head *head, struct hash_node *head_node) {
 	/* Find hottest item index*/
 	int t, i;
 	for (t = 0; t < nr_node ; t++){
+		income = 0;
 		for (i = 0; i < nr_node ; i++) {
 			income += (counters[i] / total_counter) * abs((i - t) % nr_node);
 		}
@@ -497,7 +584,6 @@ void hotspot_shift(struct head *head, struct hash_node *head_node) {
 			min_income = income;
 			nr_hottest = t;
 		}
-		income = 0;
 	}
 
 	if (min_income == head_income)
@@ -516,17 +602,27 @@ void hotspot_shift(struct head *head, struct hash_node *head_node) {
 	/* assign hottest node to head pointer */
 	rcu_assign_pointer(head->node, hottest);
 
+	if (min_income > INCOME_THRESHOLD)
+		return SHIFT_REHASH;
+
 stay_hot:
 	/* reset all counters and flags */
 	head->counter = 0;
 	head->active = 0;
 
 	printv(3, "%s()::head= %p, node= %p\n", __func__, head, head_node);
-	return;
+	return SHIFT_SUCCESS;
 }
 
-void head_pointer_movement()
-{
-
+void hotspot_shift(struct hash *h, unsigned long index, struct hash_node *head_node) {
+	struct head *head = h->slots[index];
+	hotspot_shift_t ret;
+	ret = do_hotspot_shift(head, head_node);
+	switch (ret) {
+		case SHIFT_SUCCESS:
+			return;
+		case SHIFT_REHASH:
+			hotring_rehash(h);
+	}
 	return;
 }
