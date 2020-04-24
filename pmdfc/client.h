@@ -21,8 +21,6 @@
 #define PORT 		(2325)
 #define DESTADDR 	("115.145.173.69")
 
-struct socket *conn_socket = NULL;
-
 u32 create_address(u8 *ip)
 {
         u32 addr = 0;
@@ -38,13 +36,6 @@ u32 create_address(u8 *ip)
         return addr;
 }
 
-int wait_event_timeout_wrapper(void)
-{
-	DECLARE_WAIT_QUEUE_HEAD(recv_wait);
-	wait_event_timeout(recv_wait,\
-		!skb_queue_empty(&conn_socket->sk->sk_receive_queue),\
-		5*HZ);
-}
 
 int tcp_client_send(struct socket *sock, const char *buf, const size_t length,\
                 unsigned long flags)
@@ -135,99 +126,7 @@ read_again:
         return len;
 }
 
-int tcp_client_connect(void)
-{
-        struct sockaddr_in saddr;
-        unsigned char destip[5] = {115,145,173,69,'\0'};
-        int len = 4096;
-        char response[len+1];
-        char reply[len+1];
-        int ret = -1;
-
-        DECLARE_WAIT_QUEUE_HEAD(recv_wait);
-        
-        ret = sock_create(PF_INET, SOCK_STREAM, IPPROTO_TCP, &conn_socket);
-        if(ret < 0)
-        {
-                pr_info(" *** mtp | Error: %d while creating first socket. | "
-                        "setup_connection *** \n", ret);
-                goto err;
-        }
-
-        memset(&saddr, 0, sizeof(saddr));
-        saddr.sin_family = AF_INET;
-        saddr.sin_port = htons(PORT);
-        saddr.sin_addr.s_addr = htonl(create_address(destip));
-
-        ret = conn_socket->ops->connect(conn_socket, (struct sockaddr *)&saddr\
-                        , sizeof(saddr), O_RDWR);
-        if(ret && (ret != -EINPROGRESS))
-        {
-                pr_info(" *** mtp | Error: %d while connecting using conn "
-                        "socket. | setup_connection *** \n", ret);
-                goto err;
-        }
-
-        memset(&reply, 0, len+1);
-        strcat(reply, "HOLA"); 
-        tcp_client_send(conn_socket, reply, strlen(reply), MSG_DONTWAIT);
-
-        wait_event_timeout(recv_wait,\
-                        !skb_queue_empty(&conn_socket->sk->sk_receive_queue),\
-                                                                        5*HZ);
-        /*
-        add_wait_queue(&conn_socket->sk->sk_wq->wait, &recv_wait);
-        while(1)
-        {
-                __set_current_status(TASK_INTERRUPTIBLE);
-                schedule_timeout(HZ);
-        */
-                if(!skb_queue_empty(&conn_socket->sk->sk_receive_queue))
-                {
-                        /*
-                        __set_current_status(TASK_RUNNING);
-                        remove_wait_queue(&conn_socket->sk->sk_wq->wait,\
-                                                              &recv_wait);
-                        */
-                        memset(&response, 0, len+1);
-                        tcp_client_receive(conn_socket, response, MSG_DONTWAIT);
-                        //break;
-                }
-
-        /*
-        }
-        */
-
-err:
-        return -1;
-}
-
-int send(const char *buf, const size_t length,\
-                unsigned long flags)
-{
-	tcp_client_send(conn_socket, buf, length, flags);
-	return 1;
-}
-
-int receive(char *str,\
-                        unsigned long flags)
-{
-	int len= 4096;
-	if(!skb_queue_empty(&conn_socket->sk->sk_receive_queue))
-	{
-		memset(str, 0, len+1);
-		tcp_client_receive(conn_socket, str, flags);
-	}
-}
-
-static int network_client_init(void)
-{
-        pr_info(" *** mtp | network client init | network_client_init *** \n");
-        tcp_client_connect();
-        return 0;
-}
-
-static void network_client_exit(void)
+static void network_client_exit(struct socket *conn_socket)
 {
         int len = 4096;
         char response[len+1];
@@ -259,9 +158,5 @@ static void network_client_exit(void)
 
         //}
 
-        if(conn_socket != NULL)
-        {
-                sock_release(conn_socket);
-        }
         pr_info(" *** mtp | network client exiting | network_client_exit *** \n");
 }
