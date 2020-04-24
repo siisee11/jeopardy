@@ -21,8 +21,7 @@ Persistent Memory Distributed File Cache
 
 * insmod works. ```dmesg``` to see log
 
-* pmdfc.c is main source code. ptmem.c is deprecated.
-
+* Networking using tcp/ip. --> it is hard (like concurrent request ?)
 
 ## Result
 
@@ -86,6 +85,15 @@ It works!
 * How to print key value?
 --> It is easy. See pmdfc.c
 
+* When the linux kenel calls cleancache_get_page?
+--> in fs/mpage (mpage_read_page before call bio)
+
+* So, Should we ask pm server whenever get_page called?
+--> 
+
+
+
 ## Reference
 
+[In-kernel networking using tcp ip](https://github.com/abysamross/simple-linux-kernel-tcp-client-server)
 [Server side codes](https://github.com/byeongkeonLee/PM_disaggregated_serverside)

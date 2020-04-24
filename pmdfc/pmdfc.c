@@ -4,6 +4,7 @@
 #include <linux/uuid.h>
 
 #include "tmem.h"
+#include "client.h"
 
 /* Allocation flags */
 #define PMDFC_GFP_MASK  (GFP_ATOMIC | __GFP_NORETRY | __GFP_NOWARN)
@@ -28,7 +29,11 @@ static void pmdfc_cleancache_put_page(int pool_id,
 	struct tmem_oid oid = *(struct tmem_oid *)&key;
 	void *pg_from;
 	void *pg_to;
-	char *to;
+
+	int len = 4096;
+	char response[len+1];
+	char reply[len+1];
+	int ret = -1;
 
 	if (!tmem_oid_valid(&coid)) {
 		printk(KERN_INFO "pmdfc: PUT PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
@@ -40,6 +45,15 @@ static void pmdfc_cleancache_put_page(int pool_id,
 		pg_from = kmap_atomic(page);
 		pg_to = kmap_atomic(page_pool);
 		memcpy(pg_to, pg_from, sizeof(struct page));
+
+		/* Send page to server */
+        memset(&reply, 0, len+1);
+        strcat(reply, "PUTPAGE"); 
+        send(reply, strlen(reply), MSG_DONTWAIT);
+		wait_event_timeout_wrapper();
+		receive(response, MSG_DONTWAIT);
+
+		/* unmap kmapped space */
 		kunmap_atomic(pg_from);
 		kunmap_atomic(pg_to);
 	}
@@ -53,10 +67,21 @@ static int pmdfc_cleancache_get_page(int pool_id,
 	struct tmem_oid oid = *(struct tmem_oid *)&key;
 	char *from_va;
 	char *to_va;
-	void *pg;
 	
 	printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
 			(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
+
+	int len = 4096;
+	char response[len+1];
+	char reply[len+1];
+	int ret = -1;
+
+	/* Send page to server */
+	memset(&reply, 0, len+1);
+	strcat(reply, "GETPAGE"); 
+	send(reply, strlen(reply), MSG_DONTWAIT);
+	wait_event_timeout_wrapper();
+	receive(response, MSG_DONTWAIT);
 
 	if ( tmem_oid_compare(&coid, &oid) == 0 && atomic_read(&v) == 0 ) {
 		atomic_inc(&v);
@@ -134,7 +159,8 @@ static int __init pmdfc_init(void)
 	int ret;
 
 	printk(KERN_INFO ">> pmdfc INIT\n");
-	page_pool = alloc_pages(PMDFC_GFP_MASK, PMDFC_ORDER);
+//	page_pool = alloc_pages(PMDFC_GFP_MASK, PMDFC_ORDER);
+	page_pool = alloc_page(PMDFC_GFP_MASK);
 
 	ret = pmdfc_cleancache_register_ops();
 
@@ -151,13 +177,17 @@ static int __init pmdfc_init(void)
 	else {
 		printk(KERN_INFO ">> pmdfc: cleancache_disabled\n");
 	}
+
+	network_client_init();
 	
 	return 0;
 }
 
 static void pmdfc_exit(void)
 {
-	__free_pages(page_pool, pmdfc_ORDER);
+	network_client_exit();
+//	__free_pages(page_pool, PMDFC_ORDER);
+	__free_page(page_pool);
 }
 
 module_init(pmdfc_init);
