@@ -157,25 +157,8 @@ static int pmdfc_cleancache_get_page(int pool_id,
 	printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
 			(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
 
-	int len = 4096;
-	char response[len+1];
-	char reply[len+1];
-	int ret = -1;
-
-	/* Send page to server */
-	memset(&reply, 0, len+1);
-	strcat(reply, "GETPAGE"); 
-
-	tcp_client_send(conn_socket, reply, strlen(reply), MSG_DONTWAIT);
-
-	wait_event_timeout(recv_wait,\
-			!skb_queue_empty(&conn_socket->sk->sk_receive_queue),\
-			5*HZ);
-	if(!skb_queue_empty(&conn_socket->sk->sk_receive_queue))
-	{
-		memset(&response, 0, len+1);
-		tcp_client_receive(conn_socket, response, MSG_DONTWAIT);
-	}
+	char response[4097];
+	char reply[4097];
 
 	if ( tmem_oid_compare(&coid, &oid) == 0 && atomic_read(&v) == 0 ) {
 		atomic_inc(&v);
@@ -188,7 +171,26 @@ static int pmdfc_cleancache_get_page(int pool_id,
 		kunmap_atomic(to_va);
 		kunmap_atomic(from_va);
 
+
+		/* Send page to server */
+		memset(&reply, 0, 4097);
+		strcat(reply, "GETPAGE"); 
+
+		tcp_client_send(conn_socket, reply, strlen(reply), MSG_DONTWAIT);
+
+		wait_event_timeout(recv_wait,\
+				!skb_queue_empty(&conn_socket->sk->sk_receive_queue),\
+				5*HZ);
+		if(!skb_queue_empty(&conn_socket->sk->sk_receive_queue))
+		{
+			memset(&response, 0, 4097);
+			tcp_client_receive(conn_socket, response, MSG_DONTWAIT);
+		}
+
+
 		printk(KERN_INFO "pmdfc: GET PAGE success\n");
+
+
 		return 0;
 	}
 
@@ -281,15 +283,19 @@ static int __init pmdfc_init(void)
 
 static void pmdfc_exit(void)
 {
+	/* send bye message to pm server */
 	network_client_exit(conn_socket);
-//	__free_pages(page_pool, PMDFC_ORDER);
-	
+
+	/* release socket */
 	if(conn_socket != NULL)
 	{
 			sock_release(conn_socket);
 	}
 
-	__free_page(page_pool);
+//	__free_pages(page_pool, PMDFC_ORDER);
+	
+
+//	__free_page(page_pool);
 }
 
 module_init(pmdfc_init);
