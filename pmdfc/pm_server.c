@@ -286,6 +286,26 @@ int connection_handler(void *data)
 						strlen(out_buf), MSG_DONTWAIT);
 				break;
 			}
+
+			if(memcmp(in_buf, "GETPAGE", 7) == 0)
+			{
+				memset(out_buf, 0, len+1);
+				strcat(out_buf, "HERE IS PAGE");
+				pr_info("sending response: %s\n", out_buf);
+				tcp_server_send(accept_socket, id, out_buf,\
+						strlen(out_buf), MSG_DONTWAIT);
+				break;
+			}
+
+			if(memcmp(in_buf, "PUTPAGE", 7) == 0)
+			{
+				memset(out_buf, 0, len+1);
+				strcat(out_buf, "PAGE SAVED");
+				pr_info("sending response: %s\n", out_buf);
+				tcp_server_send(accept_socket, id, out_buf,\
+						strlen(out_buf), MSG_DONTWAIT);
+				break;
+			}
 		}
 	}
 
