@@ -6,12 +6,16 @@
  * Copyright (c) 2019, Jaeyoun Nam, SKKU.
  */
 
+#ifndef PMDFC_TCP_H
+#define PMDFC_TPC_H
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
 
 #include <linux/net.h>
 #include <net/sock.h>
+#include <net/tcp.h>
 #include <linux/tcp.h>
 #include <linux/in.h>
 #include <asm/uaccess.h>
@@ -19,7 +23,34 @@
 #include <linux/slab.h>
 
 #define PORT 		(2325)
-#define DESTADDR 	("115.145.173.69")
+
+#define PMDFC_MAX_PAYLOAD_BYTES  (4096 - sizeof(struct o2net_msg))
+
+/* same as hb delay, we're waiting for another node to recognize our hb */
+#define PMDFC_RECONNECT_DELAY_MS_DEFAULT	2000
+
+#define PMDFC_KEEPALIVE_DELAY_MS_DEFAULT	2000
+#define PMDFC_IDLE_TIMEOUT_MS_DEFAULT		30000
+
+#define PMDFC_TCP_USER_TIMEOUT			0x7fffffff
+
+#define SC_NODEF_FMT "node %s (num %u) at %pI4:%u"
+#define SC_NODEF_ARGS(sc) sc->sc_node->nd_name, sc->sc_node->nd_num,	\
+	&sc->sc_node->nd_ipv4_address,		\
+	ntohs(sc->sc_node->nd_ipv4_port)
+
+struct o2net_msg
+{
+	__be16 magic;
+	__be16 data_len;
+	__be16 msg_type;
+	__be16 pad1;
+	__be32 sys_status;
+	__be32 status;
+	__be32 key;
+	__be32 msg_num;
+	__u8  buf[0];
+};
 
 u32 create_address(u8 *ip)
 {
@@ -79,6 +110,34 @@ repeat_send:
         }
         set_fs(oldmm);
         return written ? written:len;
+}
+
+
+static void pmdfc_sendpage(struct pmdfc_sock_container *sc,
+		void *kmalloced_virt,
+		size_t size)
+{
+	ssize_t ret;
+
+	while (1) {
+		mutex_lock(&sc->sc_send_lock);
+		ret = sc->ops->sendpage(sc->sc_sock,
+				virt_to_page(kmalloced_virt),
+				(long)kmalloced_virt & ~PAGE_MASK,
+				size, MSG_DONTWAIT);
+		mutex_unlock(&sc->sc_send_lock);
+		if (ret == size)
+			break;
+		if (ret == (ssize_t)-EAGAIN) {
+			pr_info("sendpage of size %zu to " SC_NODEF_FMT
+					" returned EAGAIN\n", size, SC_NODEF_ARGS(sc));
+			cond_resched();
+			continue;
+		}
+		pr_info("sendpage of size %zu to " SC_NODEF_FMT
+				" failed with %zd\n", size, SC_NODEF_ARGS(sc), ret);
+		break;
+	}
 }
 
 int tcp_client_receive(struct socket *sock, char *str,\
@@ -160,3 +219,5 @@ static void network_client_exit(struct socket *conn_socket)
 
         pr_info(" *** mtp | network client exiting | network_client_exit *** \n");
 }
+
+#endif /* PMDFC_TCP_H */

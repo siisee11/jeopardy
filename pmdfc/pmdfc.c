@@ -27,69 +27,52 @@ atomic_t v = ATOMIC_INIT(0);
 
 int tcp_client_connect(void)
 {
-        struct sockaddr_in saddr;
-        unsigned char destip[5] = {115,145,173,69,'\0'};
-        int len = 4096;
-        char response[len+1];
-        char reply[len+1];
-        int ret = -1;
+	struct sockaddr_in saddr;
+	unsigned char destip[5] = {115,145,173,69,'\0'};
+	int len = 4096;
+	char response[len+1];
+	char reply[len+1];
+	int ret = -1;
 
-        DECLARE_WAIT_QUEUE_HEAD(recv_wait);
-        
-        ret = sock_create(PF_INET, SOCK_STREAM, IPPROTO_TCP, &conn_socket);
-        if(ret < 0)
-        {
-                pr_info(" *** mtp | Error: %d while creating first socket. | "
-                        "setup_connection *** \n", ret);
-                goto err;
-        }
+	DECLARE_WAIT_QUEUE_HEAD(recv_wait);
 
-        memset(&saddr, 0, sizeof(saddr));
-        saddr.sin_family = AF_INET;
-        saddr.sin_port = htons(PORT);
-        saddr.sin_addr.s_addr = htonl(create_address(destip));
+	ret = sock_create(PF_INET, SOCK_STREAM, IPPROTO_TCP, &conn_socket);
+	if(ret < 0)
+	{
+		pr_info(" *** mtp | Error: %d while creating first socket. | "
+				"setup_connection *** \n", ret);
+		goto err;
+	}
 
-        ret = conn_socket->ops->connect(conn_socket, (struct sockaddr *)&saddr\
-                        , sizeof(saddr), O_RDWR);
-        if(ret && (ret != -EINPROGRESS))
-        {
-                pr_info(" *** mtp | Error: %d while connecting using conn "
-                        "socket. | setup_connection *** \n", ret);
-                goto err;
-        }
+	memset(&saddr, 0, sizeof(saddr));
+	saddr.sin_family = AF_INET;
+	saddr.sin_port = htons(PORT);
+	saddr.sin_addr.s_addr = htonl(create_address(destip));
 
-        memset(&reply, 0, len+1);
-        strcat(reply, "HOLA"); 
-        tcp_client_send(conn_socket, reply, strlen(reply), MSG_DONTWAIT);
+	ret = conn_socket->ops->connect(conn_socket, (struct sockaddr *)&saddr\
+			, sizeof(saddr), O_RDWR);
+	if(ret && (ret != -EINPROGRESS))
+	{
+		pr_info(" *** mtp | Error: %d while connecting using conn "
+				"socket. | setup_connection *** \n", ret);
+		goto err;
+	}
 
-        wait_event_timeout(recv_wait,\
-                        !skb_queue_empty(&conn_socket->sk->sk_receive_queue),\
-                                                                        5*HZ);
-        /*
-        add_wait_queue(&conn_socket->sk->sk_wq->wait, &recv_wait);
-        while(1)
-        {
-                __set_current_status(TASK_INTERRUPTIBLE);
-                schedule_timeout(HZ);
-        */
-                if(!skb_queue_empty(&conn_socket->sk->sk_receive_queue))
-                {
-                        /*
-                        __set_current_status(TASK_RUNNING);
-                        remove_wait_queue(&conn_socket->sk->sk_wq->wait,\
-                                                              &recv_wait);
-                        */
-                        memset(&response, 0, len+1);
-                        tcp_client_receive(conn_socket, response, MSG_DONTWAIT);
-                        //break;
-                }
+	memset(&reply, 0, len+1);
+	strcat(reply, "HOLA"); 
+	tcp_client_send(conn_socket, reply, strlen(reply), MSG_DONTWAIT);
 
-        /*
-        }
-        */
+	wait_event_timeout(recv_wait,\
+			!skb_queue_empty(&conn_socket->sk->sk_receive_queue),\
+			5*HZ);
+	if(!skb_queue_empty(&conn_socket->sk->sk_receive_queue))
+	{
+		memset(&response, 0, len+1);
+		tcp_client_receive(conn_socket, response, MSG_DONTWAIT);
+	}
 
 err:
-        return -1;
+	return -1;
 }
 
 
@@ -97,8 +80,8 @@ err:
 
 /*  Clean cache operations implementation */
 static void pmdfc_cleancache_put_page(int pool_id,
-					struct cleancache_filekey key,
-					pgoff_t index, struct page *page)
+		struct cleancache_filekey key,
+		pgoff_t index, struct page *page)
 {
 	struct tmem_oid oid = *(struct tmem_oid *)&key;
 	void *pg_from;
@@ -110,7 +93,7 @@ static void pmdfc_cleancache_put_page(int pool_id,
 	int ret = -1;
 
 	DECLARE_WAIT_QUEUE_HEAD(recv_wait);
-//
+	//
 	if (!tmem_oid_valid(&coid)) {
 		printk(KERN_INFO "pmdfc: PUT PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
 				(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
@@ -123,14 +106,14 @@ static void pmdfc_cleancache_put_page(int pool_id,
 		memcpy(pg_to, pg_from, sizeof(struct page));
 
 		/* Send page to server */
-        memset(&reply, 0, len+1);
-        strcat(reply, "PUTPAGE"); 
+		memset(&reply, 0, len+1);
+		strcat(reply, "PUTPAGE"); 
 
-        tcp_client_send(conn_socket, reply, strlen(reply), MSG_DONTWAIT);
+		tcp_client_send(conn_socket, reply, strlen(reply), MSG_DONTWAIT);
 
-        wait_event_timeout(recv_wait,\
-                        !skb_queue_empty(&conn_socket->sk->sk_receive_queue),\
-                                                                        5*HZ);
+		wait_event_timeout(recv_wait,\
+				!skb_queue_empty(&conn_socket->sk->sk_receive_queue),\
+				5*HZ);
 		if(!skb_queue_empty(&conn_socket->sk->sk_receive_queue))
 		{
 			memset(&response, 0, len+1);
@@ -144,8 +127,8 @@ static void pmdfc_cleancache_put_page(int pool_id,
 }
 
 static int pmdfc_cleancache_get_page(int pool_id,
-					struct cleancache_filekey key,
-					pgoff_t index, struct page *page)
+		struct cleancache_filekey key,
+		pgoff_t index, struct page *page)
 {
 	u32 ind = (u32) index;
 	struct tmem_oid oid = *(struct tmem_oid *)&key;
@@ -153,7 +136,7 @@ static int pmdfc_cleancache_get_page(int pool_id,
 	char *to_va;
 
 	DECLARE_WAIT_QUEUE_HEAD(recv_wait);
-	
+
 	printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
 			(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
 
@@ -165,7 +148,7 @@ static int pmdfc_cleancache_get_page(int pool_id,
 		printk(KERN_INFO "pmdfc: GET PAGE start\n");
 		to_va = kmap_atomic(page);
 		from_va = kmap_atomic(page_pool);
-		
+
 		memcpy(to_va, from_va, sizeof(struct page));
 
 		kunmap_atomic(to_va);
@@ -198,16 +181,16 @@ static int pmdfc_cleancache_get_page(int pool_id,
 }
 
 static void pmdfc_cleancache_flush_page(int pool_id,
-					struct cleancache_filekey key,
-					pgoff_t index)
+		struct cleancache_filekey key,
+		pgoff_t index)
 {
-//	printk(KERN_INFO "pmdfc: FLUSH PAGE: pool_id: %d\n", pool_id);
+	//	printk(KERN_INFO "pmdfc: FLUSH PAGE: pool_id: %d\n", pool_id);
 }
 
 static void pmdfc_cleancache_flush_inode(int pool_id,
-					struct cleancache_filekey key)
+		struct cleancache_filekey key)
 {
-//	printk(KERN_INFO "pmdfc: FLUSH INODE: pool_id: %d\n", pool_id);
+	//	printk(KERN_INFO "pmdfc: FLUSH INODE: pool_id: %d\n", pool_id);
 }
 
 static void pmdfc_cleancache_flush_fs(int pool_id)
@@ -255,7 +238,7 @@ static int __init pmdfc_init(void)
 	int ret;
 
 	printk(KERN_INFO ">> pmdfc INIT\n");
-//	page_pool = alloc_pages(PMDFC_GFP_MASK, PMDFC_ORDER);
+	//	page_pool = alloc_pages(PMDFC_GFP_MASK, PMDFC_ORDER);
 	page_pool = alloc_page(PMDFC_GFP_MASK);
 
 	ret = pmdfc_cleancache_register_ops();
@@ -277,7 +260,7 @@ static int __init pmdfc_init(void)
 	pr_info(" *** mtp | network client init | network_client_init *** \n");
 
 	tcp_client_connect();
-	
+
 	return 0;
 }
 
@@ -289,13 +272,13 @@ static void pmdfc_exit(void)
 	/* release socket */
 	if(conn_socket != NULL)
 	{
-			sock_release(conn_socket);
+		sock_release(conn_socket);
 	}
 
-//	__free_pages(page_pool, PMDFC_ORDER);
-	
+	//	__free_pages(page_pool, PMDFC_ORDER);
 
-//	__free_page(page_pool);
+
+	//	__free_page(page_pool);
 }
 
 module_init(pmdfc_init);
