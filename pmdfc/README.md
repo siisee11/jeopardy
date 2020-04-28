@@ -91,6 +91,7 @@ It works!
 * So, Should we ask pm server whenever get_page called?
 --> 
 
+* How to avoid multiple definition.
 
 
 ## Reference

@@ -1,7 +1,10 @@
 CONFIG_MODULE_SIG=n
-TARGET_MODULE := pmdfc
-obj-m := $(TARGET_MODULE).o
-obj-m += pm_server.o
+#TARGET_MODULE := pmdfc
+#obj-m := $(TARGET_MODULE).o
+#obj-m += pm_server.o 
+obj-m := siisee.o
+
+siisee-objs := pmdfc.o tcp.o
 
 KDIR	:= "/lib/modules/$(shell uname -r)/build"
 PWD     := $(shell pwd)
