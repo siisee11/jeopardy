@@ -1,0 +1,1 @@
+cmd_/root/git/jeopardy/kernel_modules/workqueue/my_workqueue.ko := ld -r -m elf_x86_64  -z max-page-size=0x200000  --build-id  -T ./scripts/module-common.lds -o /root/git/jeopardy/kernel_modules/workqueue/my_workqueue.ko /root/git/jeopardy/kernel_modules/workqueue/my_workqueue.o /root/git/jeopardy/kernel_modules/workqueue/my_workqueue.mod.o;  true
