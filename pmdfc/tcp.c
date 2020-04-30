@@ -19,6 +19,9 @@
 	ntohs(sc->sc_node->nd_ipv4_port)
 #endif
 
+/* struct workqueue */
+static struct workqueue_struct *pmnet_wq;
+
 /* PMNET nodes */
 static struct pmnet_node pmnet_nodes[1];
 
@@ -116,6 +119,32 @@ out:
 	return ret;
 }
 
+
+/* ------------------------------------------------------------ */
+
+static void pmnet_sc_queue_work(struct pmnet_sock_container *sc,
+				struct work_struct *work)
+{
+	sc_get(sc);
+	if (!queue_work(pmnet_wq, work))
+		sc_put(sc);
+}
+static void pmnet_sc_queue_delayed_work(struct pmnet_sock_container *sc,
+					struct delayed_work *work,
+					int delay)
+{
+	sc_get(sc);
+	if (!queue_delayed_work(pmnet_wq, work, delay))
+		sc_put(sc);
+}
+static void pmnet_sc_cancel_delayed_work(struct pmnet_sock_container *sc,
+					 struct delayed_work *work)
+{
+	if (cancel_delayed_work(work))
+		sc_put(sc);
+}
+
+/* ------------------------------------------------------------ */
 
 static int pmnet_set_usertimeout(struct socket *sock)
 {
@@ -290,6 +319,12 @@ int pmnet_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 		.ns_node_item = LIST_HEAD_INIT(nsw.ns_node_item),
 	};
 
+	if (pmnet_wq == NULL) {
+		pr_info("attempt to tx without o2netd running\n");
+		ret = -ESRCH;
+		goto out;
+	}
+
 	if (caller_veclen == 0) {
 		ret = -EINVAL;
 		goto out;
@@ -412,6 +447,13 @@ static void pmnet_start_connect(struct work_struct *work)
 	int ret = 0, stop;
 	unsigned int timeout;
 
+	char response[4097];
+	char reply[4097];
+
+	int status;
+
+	pr_info("pmnet_start_connect::start");
+
 	/*
 	 * sock_create allocates the sock with GFP_KERNEL. We must set
 	 * per-process flag PF_MEMALLOC_NOIO so that all allocations done
@@ -471,14 +513,10 @@ static void pmnet_start_connect(struct work_struct *work)
 		ret = 0;
 
 
-	char response[4097];
-	char reply[4097];
-
 	memset(&reply, 0, 4097);
 	strcat(reply, "HOLA"); 
 
 
-	int status;
 	pmnet_send_message(0, 0, &reply, sizeof(reply),
 		0, &status);
 
@@ -525,6 +563,26 @@ static void pmnet_still_up(struct work_struct *work)
 		container_of(work, struct pmnet_node, nn_still_up.work);
 
 //	o2quo_hb_still_up(pmnet_num_from_nn(nn));
+}
+
+/* ------------------------------------------------------------ */
+
+void pmnet_disconnect_node(struct o2nm_node *node)
+{
+	struct pmnet_node *nn = pmnet_nn_from_num(0);
+
+	/* don't reconnect until it's heartbeating again */
+	spin_lock(&nn->nn_lock);
+	atomic_set(&nn->nn_timeout, 0);
+//	pmnet_set_nn_state(nn, NULL, 0, -ENOTCONN);
+	spin_unlock(&nn->nn_lock);
+
+	if (pmnet_wq) {
+		cancel_delayed_work(&nn->nn_connect_expired);
+		cancel_delayed_work(&nn->nn_connect_work);
+		cancel_delayed_work(&nn->nn_still_up);
+		flush_workqueue(pmnet_wq);
+	}
 }
 
 
@@ -661,14 +719,21 @@ int pmnet_init(void)
 	pmnet_keep_req->magic = cpu_to_be16(PMNET_MSG_KEEP_REQ_MAGIC);
 	pmnet_keep_resp->magic = cpu_to_be16(PMNET_MSG_KEEP_RESP_MAGIC);
 
+	pmnet_wq = alloc_ordered_workqueue("pmnet", WQ_MEM_RECLAIM);
+
 	for (i = 0; i < ARRAY_SIZE(pmnet_nodes); i++) {
 		struct pmnet_node *nn = pmnet_nn_from_num(i);
-
+		
+		pr_info("pmnet_init::set pmnet_node\n");
 		atomic_set(&nn->nn_timeout, 0);
 		spin_lock_init(&nn->nn_lock);
+
 		INIT_DELAYED_WORK(&nn->nn_connect_work, pmnet_start_connect);
+		queue_delayed_work(pmnet_wq, &nn->nn_connect_work, 0);
+
 		INIT_DELAYED_WORK(&nn->nn_connect_expired,
 				pmnet_connect_expired);
+
 		INIT_DELAYED_WORK(&nn->nn_still_up, pmnet_still_up);
 		/* until we see hb from a node we'll return einval */
 		nn->nn_persistent_error = -ENOTCONN;

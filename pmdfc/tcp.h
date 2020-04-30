@@ -33,6 +33,10 @@
 
 #define PMNET_TCP_USER_TIMEOUT			0x7fffffff
 
+
+/* struct workqueue */
+static struct workqueue_struct *pmnet_wq;
+
 #if 0
 #define SC_NODEF_FMT "node %s (num %u) at %pI4:%u"
 #define SC_NODEF_ARGS(sc) sc->sc_node->nd_name, sc->sc_node->nd_num,	\
@@ -52,7 +56,7 @@ struct pmnet_msg
 	__u8  buf[0];
 };
 
-u32 create_address(u8 *ip)
+static u32 create_address(u8 *ip)
 {
         u32 addr = 0;
         int i;
@@ -67,7 +71,7 @@ u32 create_address(u8 *ip)
         return addr;
 }
 
-unsigned int inet_addr(char *str)
+static unsigned int inet_addr(char *str)
 {
 	int a,b,c,d;
 	char arr[4];

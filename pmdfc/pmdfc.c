@@ -24,6 +24,7 @@ struct tmem_oid coid = {.oid[0]=-1UL, .oid[1]=-1UL, .oid[2]=-1UL};
 /* Global count */
 atomic_t v = ATOMIC_INIT(0);
 
+
 #if 0
 int tcp_client_connect(void)
 {
@@ -231,9 +232,8 @@ static int __init pmdfc_init(void)
 		printk(KERN_INFO ">> pmdfc: cleancache_disabled\n");
 	}
 
-	pr_info(" *** mtp | network client init | network_client_init *** \n");
-
 	pmnet_init();
+	pr_info(" *** mtp | network client init | network_client_init *** \n");
 
 	return 0;
 }
