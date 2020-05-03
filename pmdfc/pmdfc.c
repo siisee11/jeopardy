@@ -127,8 +127,8 @@ static int pmdfc_cleancache_get_page(int pool_id,
 	char response[4097];
 	char reply[4097];
 
-	printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
-			(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
+//	printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
+//			(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
 
 
 	if ( tmem_oid_compare(&coid, &oid) == 0 && atomic_read(&v) == 0 ) {

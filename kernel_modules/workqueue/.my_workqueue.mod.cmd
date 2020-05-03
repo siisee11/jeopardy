@@ -1,1 +1,0 @@
-cmd_/root/git/jeopardy/kernel_modules/workqueue/my_workqueue.mod := { echo  /root/git/jeopardy/kernel_modules/workqueue/my_workqueue.o; echo; } > /root/git/jeopardy/kernel_modules/workqueue/my_workqueue.mod

@@ -295,6 +295,7 @@ static int pmnet_send_tcp_msg(struct socket *sock, struct kvec *vec,
 		goto out;
 	}
 
+	pr_info("pmnet_send_tcp_msg::call kernel_sendmsg\n");
 	ret = kernel_sendmsg(sock, &msg, vec, veclen, total);
 	if (likely(ret == total))
 		return 0;
@@ -320,18 +321,20 @@ int pmnet_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 	};
 
 	if (pmnet_wq == NULL) {
-		pr_info("attempt to tx without o2netd running\n");
+		pr_info("attempt to tx without pmnetd running\n");
 		ret = -ESRCH;
 		goto out;
 	}
 
 	if (caller_veclen == 0) {
+		pr_info("caller_veclen is 0\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
 	caller_bytes = iov_length((struct iovec *)caller_vec, caller_veclen);
 	if (caller_bytes > PMNET_MAX_PAYLOAD_BYTES) {
+		pr_info("caller_bytes(%d) too large\n", caller_bytes);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -379,6 +382,7 @@ int pmnet_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 	/* finally, convert the message header to network byte-order
 	 * 	 * and send */
 	mutex_lock(&sc->sc_send_lock);
+	pr_info("pmnet_send_message_vec::call pmnet_send_tcp_msg\n");
 	ret = pmnet_send_tcp_msg(sc->sc_sock, vec, veclen,
 			sizeof(struct pmnet_msg) + caller_bytes);
 	mutex_unlock(&sc->sc_send_lock);
@@ -424,6 +428,7 @@ int pmnet_send_message(u32 msg_type, u32 key, void *data, u32 len,
 		.iov_base = data,
 		.iov_len = len,
 	};
+	pr_info("pmnet_send_message::call pmnet_send_message_vec\n");
 	return pmnet_send_message_vec(msg_type, key, &vec, 1,
 			target_node, status);
 }
@@ -452,7 +457,7 @@ static void pmnet_start_connect(struct work_struct *work)
 
 	int status;
 
-	pr_info("pmnet_start_connect::start");
+	pr_info("pmnet_start_connect::start\n");
 
 	/*
 	 * sock_create allocates the sock with GFP_KERNEL. We must set
@@ -473,19 +478,21 @@ static void pmnet_start_connect(struct work_struct *work)
 		pr_info("can't create socket: %d\n", ret);
 		goto out;
 	}
+	pr_info("pmnet_start_connect::socket_create\n");
 	sc->sc_sock = sock; /* freed by sc_kref_release */
 
 	sock->sk->sk_allocation = GFP_ATOMIC;
 
 	myaddr.sin_family = AF_INET;
-	myaddr.sin_addr.s_addr = inet_addr (DEST_ADDR);
-	myaddr.sin_port = htons(PORT); /* any port */
+	myaddr.sin_addr.s_addr = inet_addr (MY_ADDR);
+	myaddr.sin_port = htons(0); /* any port */
 
 	ret = sock->ops->bind(sock, (struct sockaddr *)&myaddr,
 			sizeof(myaddr));
 	if (ret) {
 		goto out;
 	}
+	pr_info("pmnet_start_connect::socket_bind\n");
 
 	ret = pmnet_set_nodelay(sc->sc_sock);
 	if (ret) {
@@ -512,13 +519,17 @@ static void pmnet_start_connect(struct work_struct *work)
 	if (ret == -EINPROGRESS)
 		ret = 0;
 
+	pr_info("pmnet_start_connect::socket connect\n");
 
 	memset(&reply, 0, 4097);
 	strcat(reply, "HOLA"); 
 
 
-	pmnet_send_message(0, 0, &reply, sizeof(reply),
+	ret = pmnet_send_message(0, 0, &reply, sizeof(reply),
 		0, &status);
+	if (ret < 0)
+		pr_info("error::pmnet_send_message\n");
+	pr_info("pmnet_start_connect::send_message\n");
 
 out:
 #if 0
@@ -728,8 +739,10 @@ int pmnet_init(void)
 		atomic_set(&nn->nn_timeout, 0);
 		spin_lock_init(&nn->nn_lock);
 
+		pr_info("pmnet_init::INIT_DELAYED_WORK(nn_connect_work)\n");
 		INIT_DELAYED_WORK(&nn->nn_connect_work, pmnet_start_connect);
 		queue_delayed_work(pmnet_wq, &nn->nn_connect_work, 0);
+		pr_info("pmnet_init::INIT_DELAYED_WORK(nn_connect_work) end.\n");
 
 		INIT_DELAYED_WORK(&nn->nn_connect_expired,
 				pmnet_connect_expired);

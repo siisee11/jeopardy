@@ -19,7 +19,7 @@ static void my_wq_function( struct work_struct *work)
 {
 	my_work_t *my_work = (my_work_t *)work;
 
-	printk( "my_work.x %d", my_work->x );
+	printk( "my_work.x %d\n", my_work->x );
 
 	kfree( (void *)work );
 
