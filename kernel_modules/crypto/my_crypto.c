@@ -70,7 +70,6 @@ static int test_hash(const unsigned char *data, unsigned int datalen,
 
 static int __init init_crypto( void )
 {
-	//	unsigned char *digest=NULL;
 	u8 digest[20];
 	test_hash("hihi", 4, digest);
 	int i = 0;

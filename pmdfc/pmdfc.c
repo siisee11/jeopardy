@@ -5,15 +5,16 @@
 
 #include "tmem.h"
 #include "tcp.h"
-
-/* socket for networking */
-//struct socket *conn_socket = NULL;
+#include "bloom_filter.h"
 
 /* Allocation flags */
 #define PMDFC_GFP_MASK  (GFP_ATOMIC | __GFP_NORETRY | __GFP_NOWARN)
 
 /* Initial page pool: 32 MB (2^13 * 4KB) in pages */
 #define PMDFC_ORDER 13
+
+/* bloom filter */
+struct bloom_filter *bf;
 
 /* The pool holding the compressed pages */
 struct page* page_pool;
@@ -25,61 +26,6 @@ struct tmem_oid coid = {.oid[0]=-1UL, .oid[1]=-1UL, .oid[2]=-1UL};
 atomic_t v = ATOMIC_INIT(0);
 
 
-#if 0
-int tcp_client_connect(void)
-{
-	struct sockaddr_in saddr;
-	unsigned char destip[5] = {115,145,173,69,'\0'};
-	int len = 4096;
-	char response[len+1];
-	char reply[len+1];
-	int ret = -1;
-
-	DECLARE_WAIT_QUEUE_HEAD(recv_wait);
-
-	ret = sock_create(PF_INET, SOCK_STREAM, IPPROTO_TCP, &conn_socket);
-	if(ret < 0)
-	{
-		pr_info(" *** mtp | Error: %d while creating first socket. | "
-				"setup_connection *** \n", ret);
-		goto err;
-	}
-
-	memset(&saddr, 0, sizeof(saddr));
-	saddr.sin_family = AF_INET;
-	saddr.sin_port = htons(PORT);
-	saddr.sin_addr.s_addr = htonl(create_address(destip));
-
-	ret = conn_socket->ops->connect(conn_socket, (struct sockaddr *)&saddr\
-			, sizeof(saddr), O_RDWR);
-	if(ret && (ret != -EINPROGRESS))
-	{
-		pr_info(" *** mtp | Error: %d while connecting using conn "
-				"socket. | setup_connection *** \n", ret);
-		goto err;
-	}
-
-	memset(&reply, 0, len+1);
-	strcat(reply, "HOLA"); 
-	tcp_client_send(conn_socket, reply, strlen(reply), MSG_DONTWAIT);
-
-	wait_event_timeout(recv_wait,\
-			!skb_queue_empty(&conn_socket->sk->sk_receive_queue),\
-			5*HZ);
-	if(!skb_queue_empty(&conn_socket->sk->sk_receive_queue))
-	{
-		memset(&response, 0, len+1);
-		tcp_client_receive(conn_socket, response, MSG_DONTWAIT);
-	}
-
-err:
-	return -1;
-}
-#endif
-
-
-
-
 /*  Clean cache operations implementation */
 static void pmdfc_cleancache_put_page(int pool_id,
 		struct cleancache_filekey key,
@@ -88,10 +34,11 @@ static void pmdfc_cleancache_put_page(int pool_id,
 	struct tmem_oid oid = *(struct tmem_oid *)&key;
 	void *pg_from;
 	void *pg_to;
+	u8 *data = (u8 *)&key;
 
 	int len = 4096;
-	char response[len+1];
-	char reply[len+1];
+	char response[10];
+	char reply[10];
 	int ret = -1;
 
 	if (!tmem_oid_valid(&coid)) {
@@ -106,8 +53,15 @@ static void pmdfc_cleancache_put_page(int pool_id,
 		memcpy(pg_to, pg_from, sizeof(struct page));
 
 		/* Send page to server */
-		memset(&reply, 0, len+1);
+		memset(&reply, 0, 10);
 		strcat(reply, "PUTPAGE"); 
+
+#if 0
+		/* add to bloom filter */
+		ret = bloom_filter_add(bf, data);
+		if ( ret < 0 )
+			pr_info("bloom_filter add fail\n");
+#endif
 
 		/* unmap kmapped space */
 		kunmap_atomic(pg_from);
@@ -123,13 +77,23 @@ static int pmdfc_cleancache_get_page(int pool_id,
 	struct tmem_oid oid = *(struct tmem_oid *)&key;
 	char *from_va;
 	char *to_va;
+	u8 *data = (u8 *)&key;
 
 	char response[4097];
 	char reply[4097];
 
+	bool isIn = false;
+
 //	printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
 //			(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
+	
+//	bloom_filter_check(bf, data, 0, &isIn);
 
+	if ( !isIn )
+		goto out;
+
+	printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
+			(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
 
 	if ( tmem_oid_compare(&coid, &oid) == 0 && atomic_read(&v) == 0 ) {
 		atomic_inc(&v);
@@ -152,6 +116,7 @@ static int pmdfc_cleancache_get_page(int pool_id,
 		return 0;
 	}
 
+out:
 	return -1;
 }
 
@@ -208,6 +173,31 @@ static int pmdfc_cleancache_register_ops(void)
 	return ret;
 }
 
+static int bloom_filter_init(void)
+{
+	unsigned char *data = "hihi";
+	bool isIn;
+	int ret = 0;
+
+	bf = bloom_filter_new(1000);
+	bloom_filter_add_hash_alg(bf, "md5");
+	bloom_filter_add_hash_alg(bf, "sha1");
+	bloom_filter_add_hash_alg(bf, "sha256");
+
+	test_main();
+#if 0
+	ret = bloom_filter_add(bf, data);
+	if ( ret < 0 )
+		pr_info("bloom_filter add fail\n");
+
+	bloom_filter_check(bf, data, 0, &isIn);
+
+	pr_info("isIn=%d \n", isIn);
+#endif
+
+	return 0;
+}
+
 static int __init pmdfc_init(void)
 {
 	int ret;
@@ -235,11 +225,17 @@ static int __init pmdfc_init(void)
 	pmnet_init();
 	pr_info(" *** mtp | network client init | network_client_init *** \n");
 
+	/* init bloom filter */
+	bloom_filter_init();
+	pr_info(" *** bloom filter | init | bloom_filter_init *** \n");
+	
+
 	return 0;
 }
 
 static void pmdfc_exit(void)
 {
+	bloom_filter_unref(bf);
 	pmnet_exit();
 
 	//	__free_pages(page_pool, PMDFC_ORDER);

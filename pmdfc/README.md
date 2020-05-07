@@ -23,6 +23,8 @@ Persistent Memory Distributed File Cache
 
 * Networking using tcp/ip. --> it is hard (like concurrent request ?)
 
+* reduce # of get from remote pm --> use bloom filter 
+
 ## Result
 
 printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
