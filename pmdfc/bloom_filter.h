@@ -17,7 +17,8 @@ struct bloom_filter {
 };
 
 struct bloom_crypto_alg {
-	u8					*data;
+//	u8					*data;
+	u8					data[32];
 	unsigned int		len;
 	int					hash_tfm_allocated:1;
 	struct crypto_shash	*hash_tfm;
@@ -34,7 +35,7 @@ int bloom_filter_add_hash_alg(struct bloom_filter *filter,
 			      const char *name);
 
 int bloom_filter_add(struct bloom_filter *filter,
-		     const u8 *data);
+		     const u8 *data, unsigned int);
 int bloom_filter_check(struct bloom_filter *filter,
 		       const u8 *data, unsigned int size,
 		       bool *result);
