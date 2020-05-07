@@ -24,7 +24,7 @@ Persistent Memory Distributed File Cache
 * Networking using tcp/ip. --> it is hard (like concurrent request ?)
 
 * reduce # of get from remote pm --> use bloom filter  --> use string data (ok)
-	--> use key
+	--> use key and index ( parsing key as unsigned char and add index to first byte. )
 
 ## Result
 
@@ -84,6 +84,7 @@ It works!
 
 * page pointers are different but key is same why?
 --> Key is from inode number or file handle, so the key is not unique for each page but for file.
+--> key and index number is unique.
 
 * How to print key value?
 --> It is easy. See pmdfc.c
@@ -92,9 +93,7 @@ It works!
 --> in fs/mpage (mpage_read_page before call bio)
 
 * So, Should we ask pm server whenever get_page called?
---> 
-
-* How to avoid multiple definition.
+--> no, client have small bloom filter to check whether the page is not in pm server.
 
 
 ## Reference

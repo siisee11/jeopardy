@@ -17,8 +17,7 @@ struct bloom_filter {
 };
 
 struct bloom_crypto_alg {
-//	u8					*data;
-	u8					data[32];
+	u8					*data;
 	unsigned int		len;
 	int					hash_tfm_allocated:1;
 	struct crypto_shash	*hash_tfm;

@@ -34,7 +34,10 @@ static void pmdfc_cleancache_put_page(int pool_id,
 	struct tmem_oid oid = *(struct tmem_oid *)&key;
 	void *pg_from;
 	void *pg_to;
-	u8 *data = (u8 *)&key;
+
+	/* hash input data */
+	unsigned char *data = (unsigned char*)&key;
+	data[0] += index;
 
 	int len = 4096;
 	char response[10];
@@ -56,12 +59,10 @@ static void pmdfc_cleancache_put_page(int pool_id,
 		memset(&reply, 0, 10);
 		strcat(reply, "PUTPAGE"); 
 
-#if 0
 		/* add to bloom filter */
-		ret = bloom_filter_add(bf, data);
+		ret = bloom_filter_add(bf, data, 8);
 		if ( ret < 0 )
 			pr_info("bloom_filter add fail\n");
-#endif
 
 		/* unmap kmapped space */
 		kunmap_atomic(pg_from);
@@ -77,7 +78,10 @@ static int pmdfc_cleancache_get_page(int pool_id,
 	struct tmem_oid oid = *(struct tmem_oid *)&key;
 	char *from_va;
 	char *to_va;
-	u8 *data = (u8 *)&key;
+
+	/* hash input data */
+	unsigned char *data = (unsigned char*)&key;
+	data[0] += index;
 
 	char response[4097];
 	char reply[4097];
@@ -87,10 +91,12 @@ static int pmdfc_cleancache_get_page(int pool_id,
 //	printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
 //			(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
 	
-//	bloom_filter_check(bf, data, 0, &isIn);
+	bloom_filter_check(bf, data, 8, &isIn);
 
 	if ( !isIn )
 		goto out;
+
+	pr_info("may be is in\n");
 
 	printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
 			(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);

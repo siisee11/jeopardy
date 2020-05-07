@@ -106,7 +106,7 @@ int bloom_filter_add_hash_alg(struct bloom_filter *filter,
 	alg->hash_tfm_allocated = true;
 	alg->len = crypto_shash_digestsize(alg->hash_tfm);
 	pr_info("alg(%s)->len=%d\n", name, alg->len);
-//	alg->data = kzalloc(alg->len, GFP_KERNEL);
+	alg->data = kzalloc(alg->len, GFP_KERNEL);
 	if (!alg->data) {
 		ret = -ENOMEM;
 		goto exit_free_hash;
