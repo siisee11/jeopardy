@@ -23,7 +23,8 @@ Persistent Memory Distributed File Cache
 
 * Networking using tcp/ip. --> it is hard (like concurrent request ?)
 
-* reduce # of get from remote pm --> use bloom filter 
+* reduce # of get from remote pm --> use bloom filter  --> use string data (ok)
+	--> use key
 
 ## Result
 

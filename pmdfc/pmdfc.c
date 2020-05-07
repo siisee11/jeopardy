@@ -175,7 +175,7 @@ static int pmdfc_cleancache_register_ops(void)
 
 static int bloom_filter_init(void)
 {
-	unsigned char *data = "hihi";
+	unsigned char *data = "hihihellolowl";
 	bool isIn;
 	int ret = 0;
 
@@ -184,16 +184,13 @@ static int bloom_filter_init(void)
 	bloom_filter_add_hash_alg(bf, "sha1");
 	bloom_filter_add_hash_alg(bf, "sha256");
 
-	test_main();
-#if 0
-	ret = bloom_filter_add(bf, data);
+	ret = bloom_filter_add(bf, data, 4);
 	if ( ret < 0 )
 		pr_info("bloom_filter add fail\n");
 
-	bloom_filter_check(bf, data, 0, &isIn);
+	bloom_filter_check(bf, data, 4, &isIn);
 
 	pr_info("isIn=%d \n", isIn);
-#endif
 
 	return 0;
 }

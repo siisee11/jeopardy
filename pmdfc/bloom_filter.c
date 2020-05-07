@@ -85,38 +85,6 @@ void bloom_filter_unref(struct bloom_filter *filter)
 	kref_put(&filter->kref, __bloom_filter_free);
 }
 
-int bloom_filter_add_crypto_shash(struct bloom_filter *filter,
-				 struct crypto_shash *hash_tfm)
-{
-	struct bloom_crypto_alg *alg;
-	int ret = 0;
-
-	alg = kzalloc(sizeof(*alg), GFP_KERNEL);
-	if (!alg) {
-		ret = -ENOMEM;
-		goto exit;
-	}
-
-	alg->len = crypto_shash_digestsize(hash_tfm);
-	alg->data = kzalloc(alg->len, GFP_KERNEL);
-	if (!alg->data) {
-		ret = -ENOMEM;
-		goto exit_free_alg;
-	}
-
-	mutex_lock(&filter->lock);
-	list_add_tail(&alg->entry, &filter->alg_list);
-	mutex_unlock(&filter->lock);
-
-	return 0;
-
-exit_free_alg:
-	kfree(alg);
-
-exit:
-	return ret;
-}
-
 int bloom_filter_add_hash_alg(struct bloom_filter *filter,
 			      const char *name)
 {
@@ -138,7 +106,7 @@ int bloom_filter_add_hash_alg(struct bloom_filter *filter,
 	alg->hash_tfm_allocated = true;
 	alg->len = crypto_shash_digestsize(alg->hash_tfm);
 	pr_info("alg(%s)->len=%d\n", name, alg->len);
-	alg->data = kzalloc(alg->len, GFP_KERNEL);
+//	alg->data = kzalloc(alg->len, GFP_KERNEL);
 	if (!alg->data) {
 		ret = -ENOMEM;
 		goto exit_free_hash;
@@ -162,44 +130,33 @@ exit:
 
 int __bit_for_crypto_alg(struct bloom_crypto_alg *alg,
 			 const u8 *data,
-			 unsigned int len,
+			 unsigned int datalen,
+			 unsigned int bitmap_size,
 			 unsigned int *bit)
 {
-	struct shash_desc desc;
     struct sdesc *sdesc;
 	unsigned int i;
 	int ret;
 
-    sdesc = init_sdesc(alg->hash_tf);
+    sdesc = init_sdesc(alg->hash_tfm);
     if (IS_ERR(sdesc)) {
         pr_info("can't alloc sdesc\n");
         return PTR_ERR(sdesc);
     }
 
-	printk("data:%s\n", data);
     ret = crypto_shash_digest(&sdesc->shash, data, datalen, alg->data);
+
     kfree(sdesc);
-    return ret;
-
-
-#if 0
-	ret = crypto_shash_init(&desc);
-	if (ret < 0)
-		return ret;
-
-	ret = crypto_shash_digest(&desc, data, len, alg->data);
-	if (ret < 0)
-		return ret;
 
 	*bit = 0;
 
-	for (i = 0; i < alg->len; i++) {
+	/* TODO: i range check (alg->len) */
+	for (i = 0; i < alg->len / 8; i++) {
 		*bit += alg->data[i];
-		*bit %= len;
+		*bit %= bitmap_size;
 	}
 
-	return 0;
-#endif
+    return ret;
 }
 
 int bloom_filter_add(struct bloom_filter *filter,
@@ -207,6 +164,7 @@ int bloom_filter_add(struct bloom_filter *filter,
 {
 	struct bloom_crypto_alg *alg;
 	int ret = 0;
+	int i;
 
 	pr_info("data: %s\n", data);
 
@@ -219,12 +177,11 @@ int bloom_filter_add(struct bloom_filter *filter,
 	list_for_each_entry(alg, &filter->alg_list, entry) {
 		unsigned int bit;
 
-//		ret = __bit_for_crypto_alg(alg, data, filter->bitmap_size, &bit);
-		ret = __bit_for_crypto_alg(alg, data, datalen, &bit);
+		ret = __bit_for_crypto_alg(alg, data, datalen, filter->bitmap_size, &bit);
 		if (ret < 0)
 			goto exit_unlock;
-		pr_info("bit: %u\n", bit);
 
+		printk("set bit=%u", bit);
 		set_bit(bit, filter->bitmap);
 	}
 
@@ -252,11 +209,11 @@ int bloom_filter_check(struct bloom_filter *filter,
 	list_for_each_entry(alg, &filter->alg_list, entry) {
 		unsigned int bit;
 
-//		ret = __bit_for_crypto_alg(alg, data, filter->bitmap_size, &bit);
-		ret = __bit_for_crypto_alg(alg, data, datalen, &bit);
+		ret = __bit_for_crypto_alg(alg, data, datalen, filter->bitmap_size, &bit);
 		if (ret < 0)
 			goto exit_unlock;
 
+		printk("test bit=%u", bit);
 		if (!test_bit(bit, filter->bitmap)) {
 			*result = false;
 			break;
@@ -333,7 +290,7 @@ int test_main( void )
 	printk("digest: ");
 	for (i = 0; i < 4; ++i) {
 		printk("%02x %02x %02x %02x %02x ", 
-				digest[i], digest[i+1].);
+				digest[i], digest[i+1], digest[i+2], digest[i+3], digest[i+4]);
 	}
 	printk("\n");
 
