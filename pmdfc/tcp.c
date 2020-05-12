@@ -5,6 +5,7 @@
 #include <linux/kref.h>
 #include <linux/net.h>
 #include <linux/export.h>
+#include <linux/sched/mm.h>
 #include <net/tcp.h>
 
 #include <asm/uaccess.h>
@@ -19,8 +20,12 @@
 	ntohs(sc->sc_node->nd_ipv4_port)
 #endif
 
+/* XXX */
+static struct socket *pmnet_listen_sock;
+
 /* struct workqueue */
 static struct workqueue_struct *pmnet_wq;
+static struct work_struct pmnet_listen_work;
 
 /* PMNET nodes */
 static struct pmnet_node pmnet_nodes[1];
@@ -30,6 +35,8 @@ static struct pmnet_msg *pmnet_keep_req, *pmnet_keep_resp;
 
 
 static void pmnet_shutdown_sc(struct work_struct *work);
+static void pmnet_sc_connect_completed(struct work_struct *work);
+static void pmnet_sc_send_keep_req(struct work_struct *work);
 
 
 /* get pmnet_node by number */
@@ -122,10 +129,10 @@ static struct pmnet_sock_container *sc_alloc(void)
 
 	kref_init(&sc->sc_kref);
 
-#if 0
 	INIT_WORK(&sc->sc_connect_work, pmnet_sc_connect_completed);
-	INIT_WORK(&sc->sc_rx_work, pmnet_rx_until_empty);
 	INIT_DELAYED_WORK(&sc->sc_keepalive_work, pmnet_sc_send_keep_req);
+#if 0
+	INIT_WORK(&sc->sc_rx_work, pmnet_rx_until_empty);
 #endif
 	INIT_WORK(&sc->sc_shutdown_work, pmnet_shutdown_sc);
 
@@ -205,15 +212,17 @@ static void pmnet_set_nn_state(struct pmnet_node *nn,
 		       "Connected to" : "Accepted connection from",
 		       SC_NODEF_ARGS(sc));
 	}
+#endif
 
 	/* trigger the connecting worker func as long as we're not valid,
 	 * it will back off if it shouldn't connect.  This can be called
 	 * from node config teardown and so needs to be careful about
 	 * the work queue actually being up. */
 	if (!valid && pmnet_wq) {
-		unsigned long delay;
+		unsigned long delay = 0;
 		/* delay if we're within a RECONNECT_DELAY of the
 		 * last attempt */
+#if 0
 		delay = (nn->nn_last_connect_attempt +
 			 msecs_to_jiffies(pmnet_reconnect_delay()))
 			- jiffies;
@@ -231,11 +240,12 @@ static void pmnet_set_nn_state(struct pmnet_node *nn,
 		 * the connect_expired work will do anything.  The rest will see
 		 * that it's already queued and do nothing.
 		 */
-		delay += msecs_to_jiffies(pmnet_idle_timeout());
-		queue_delayed_work(pmnet_wq, &nn->nn_connect_expired, delay);
+//		delay += msecs_to_jiffies(pmnet_idle_timeout());
+//		queue_delayed_work(pmnet_wq, &nn->nn_connect_expired, delay);
+		queue_delayed_work(pmnet_wq, &nn->nn_connect_expired, 100);
+#endif 
 	}
 
-#endif
 
 	/* keep track of the nn's sc ref for the caller */
 	if ((old_sc == NULL) && sc)
@@ -404,6 +414,35 @@ static void pmnet_initialize_handshake(void)
 			pmnet_reconnect_delay());
 }
 #endif
+
+static void pmnet_sendpage(struct pmnet_sock_container *sc,
+			   void *kmalloced_virt,
+			   size_t size)
+{
+	struct pmnet_node *nn = pmnet_nn_from_num(0);
+	ssize_t ret;
+
+	while (1) {
+		mutex_lock(&sc->sc_send_lock);
+		ret = sc->sc_sock->ops->sendpage(sc->sc_sock,
+						 virt_to_page(kmalloced_virt),
+						 offset_in_page(kmalloced_virt),
+						 size, MSG_DONTWAIT);
+		mutex_unlock(&sc->sc_send_lock);
+		if (ret == size)
+			break;
+		if (ret == (ssize_t)-EAGAIN) {
+			pr_info("sendpage of size %zu to failed with EAGAIN\n", size);
+			cond_resched();
+			continue;
+		}
+		pr_info("sendpage of size %zu to failed with %zd\n", size, ret);
+		pmnet_ensure_shutdown(nn, sc, 0);
+		break;
+	}
+}
+
+
 
 
 static void pmnet_init_msg(struct pmnet_msg *msg, u16 data_len, u16 msg_type, u32 key)
@@ -597,8 +636,6 @@ int pmnet_send_message(u32 msg_type, u32 key, void *data, u32 len,
 		.iov_base = data,
 		.iov_len = len,
 	};
-	pr_info("MESSAGE::%s\n", vec.iov_base);
-	pr_info("pmnet_send_message::call pmnet_send_message_vec\n");
 	return pmnet_send_message_vec(msg_type, key, &vec, 1,
 			target_node, status);
 }
@@ -659,8 +696,7 @@ static void pmnet_start_connect(struct work_struct *work)
 		pr_info("couldn't allocate sc\n");
 		ret = -ENOMEM;
 		goto out;
-	}
-
+	} 
 	ret = sock_create(PF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
 	if (ret < 0) {
 		pr_info("can't create socket: %d\n", ret);
@@ -671,6 +707,7 @@ static void pmnet_start_connect(struct work_struct *work)
 
 	sock->sk->sk_allocation = GFP_ATOMIC;
 
+#if 0
 	myaddr.sin_family = AF_INET;
 	myaddr.sin_addr.s_addr = inet_addr (MY_ADDR);
 	myaddr.sin_port = htons(0); /* any port */
@@ -681,6 +718,7 @@ static void pmnet_start_connect(struct work_struct *work)
 		goto out;
 	}
 	pr_info("pmnet_start_connect::socket_bind\n");
+#endif
 
 	ret = pmnet_set_nodelay(sc->sc_sock);
 	if (ret) {
@@ -712,41 +750,40 @@ static void pmnet_start_connect(struct work_struct *work)
 	if (ret == -EINPROGRESS)
 		ret = 0;
 
-	pr_info("pmnet_start_connect::socket connect\n");
+	pr_info("pmnet_start_connect::socket connected\n");
 
+	/* test send mesg */
 	memset(&reply, 0, 1024);
 	strcat(reply, "HOLA"); 
 
-	pr_info("MESSAGE::%s\n", reply);
+	pr_info("pmnet_start_connect::call send_message\n");
 	ret = pmnet_send_message(0, 0, &reply, sizeof(reply),
 		0, &status);
 	if (ret < 0)
 		pr_info("error::pmnet_send_message\n");
-	pr_info("pmnet_start_connect::send_message\n");
-
 
 	memset(&response, 0, 1024);
-	pr_info("pmnet_start_connect::recv_message\n");
+	pr_info("pmnet_start_connect::call recv_message\n");
 	ret = pmnet_recv_message(0, 0, &response, sizeof(response), 0);
 	if (ret < 0)
 		pr_info("error::pmnet_recv_message\n");
 	pr_info("pmnet_start_connect::recv_message finish\n");
-	pr_info("MESSAGE::%s\n", response);
+	pr_info("RESPONSE MESSAGE::%s\n", response);
+
 
 out:
-#if 0
 	if (ret && sc) {
-		printk(KERN_NOTICE "pmnet: Connect attempt to " SC_NODEF_FMT
-				" failed with errno %d\n", SC_NODEF_ARGS(sc), ret);
+		printk(KERN_NOTICE "pmnet: Connect attempt to " 
+				" failed with errno %d\n", ret);
 		/* 0 err so that another will be queued and attempted
 		 * from set_nn_state 
 		 */
-//		pmnet_ensure_shutdown(nn, sc, 0);
+		pmnet_ensure_shutdown(nn, sc, 0);
 	}
-#endif
 	if (sc)
 		sc_put(sc);
 
+	pr_info("pmnet_start_connect::end\n");
 	return;
 }
 
@@ -756,17 +793,17 @@ static void pmnet_connect_expired(struct work_struct *work)
 		container_of(work, struct pmnet_node, nn_connect_expired.work);
 
 	spin_lock(&nn->nn_lock);
-#if 0
 	if (!nn->nn_sc_valid) {
+#if 0
 		printk(KERN_NOTICE "pmnet: No connection established with "
 				"node %u after %u.%u seconds, check network and"
 				" cluster configuration.\n",
 				pmnet_num_from_nn(nn),
 				pmnet_idle_timeout() / 1000,
 				pmnet_idle_timeout() % 1000);
+#endif
 		pmnet_set_nn_state(nn, NULL, 0, 0);
 	}
-#endif
 	spin_unlock(&nn->nn_lock);
 }
 
@@ -780,14 +817,14 @@ static void pmnet_still_up(struct work_struct *work)
 
 /* ------------------------------------------------------------ */
 
-void pmnet_disconnect_node(struct o2nm_node *node)
+void pmnet_disconnect_node(void)
 {
 	struct pmnet_node *nn = pmnet_nn_from_num(0);
 
 	/* don't reconnect until it's heartbeating again */
 	spin_lock(&nn->nn_lock);
 	atomic_set(&nn->nn_timeout, 0);
-//	pmnet_set_nn_state(nn, NULL, 0, -ENOTCONN);
+	pmnet_set_nn_state(nn, NULL, 0, -ENOTCONN);
 	spin_unlock(&nn->nn_lock);
 
 	if (pmnet_wq) {
@@ -801,7 +838,221 @@ void pmnet_disconnect_node(struct o2nm_node *node)
 
 /* ----------------------------------------------------------------- */
 
+static int pmnet_accept_one(struct socket *sock, int *more)
+{
+	int ret;
+	struct sockaddr_in sin;
+	struct socket *new_sock = NULL;
 #if 0
+	struct pmnm_node *node = NULL;
+	struct pmnm_node *local_node = NULL;
+#endif
+	struct pmnet_sock_container *sc = NULL;
+	struct pmnet_node *nn;
+	unsigned int noio_flag;
+
+	/*
+	 * sock_create_lite allocates the sock with GFP_KERNEL. We must set
+	 * per-process flag PF_MEMALLOC_NOIO so that all allocations done
+	 * by this process are done as if GFP_NOIO was specified. So we
+	 * are not reentering filesystem while doing memory reclaim.
+	 */
+	noio_flag = memalloc_noio_save();
+
+	BUG_ON(sock == NULL);
+	*more = 0;
+	ret = sock_create_lite(sock->sk->sk_family, sock->sk->sk_type,
+			       sock->sk->sk_protocol, &new_sock);
+	if (ret)
+		goto out;
+
+	new_sock->type = sock->type;
+	new_sock->ops = sock->ops;
+	ret = sock->ops->accept(sock, new_sock, O_NONBLOCK, false);
+	if (ret < 0)
+		goto out;
+
+	*more = 1;
+	new_sock->sk->sk_allocation = GFP_ATOMIC;
+
+	ret = pmnet_set_nodelay(new_sock);
+	if (ret) {
+		pr_info("setting TCP_NODELAY failed with %d\n", ret);
+		goto out;
+	}
+
+	ret = pmnet_set_usertimeout(new_sock);
+	if (ret) {
+		pr_info("set TCP_USER_TIMEOUT failed with %d\n", ret);
+		goto out;
+	}
+
+	ret = new_sock->ops->getname(new_sock, (struct sockaddr *) &sin, 1);
+	if (ret < 0)
+		goto out;
+
+#if 0
+	node = pmnm_get_node_by_ip(sin.sin_addr.s_addr);
+	if (node == NULL) {
+		printk(KERN_NOTICE "pmnet: Attempt to connect from unknown "
+		       "node at %pI4:%d\n", &sin.sin_addr.s_addr,
+		       ntohs(sin.sin_port));
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (pmnm_this_node() >= node->nd_num) {
+		local_node = pmnm_get_node_by_num(pmnm_this_node());
+		if (local_node)
+			printk(KERN_NOTICE "pmnet: Unexpected connect attempt "
+					"seen at node '%s' (%u, %pI4:%d) from "
+					"node '%s' (%u, %pI4:%d)\n",
+					local_node->nd_name, local_node->nd_num,
+					&(local_node->nd_ipv4_address),
+					ntohs(local_node->nd_ipv4_port),
+					node->nd_name,
+					node->nd_num, &sin.sin_addr.s_addr,
+					ntohs(sin.sin_port));
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* this happens all the time when the other node sees our heartbeat
+	 * and tries to connect before we see their heartbeat */
+	if (!pmhb_check_node_heartbeating_from_callback(node->nd_num)) {
+		mlog(ML_CONN, "attempt to connect from node '%s' at "
+		     "%pI4:%d but it isn't heartbeating\n",
+		     node->nd_name, &sin.sin_addr.s_addr,
+		     ntohs(sin.sin_port));
+		ret = -EINVAL;
+		goto out;
+	}
+#endif
+
+//	nn = pmnet_nn_from_num(node->nd_num);
+	nn = pmnet_nn_from_num(0);
+
+	spin_lock(&nn->nn_lock);
+	if (nn->nn_sc)
+		ret = -EBUSY;
+	else
+		ret = 0;
+	spin_unlock(&nn->nn_lock);
+	if (ret) {
+/*
+		printk(KERN_NOTICE "pmnet: Attempt to connect from node '%s' "
+		       "at %pI4:%d but it already has an open connection\n",
+		       node->nd_name, &sin.sin_addr.s_addr,
+		       ntohs(sin.sin_port));
+*/
+		goto out;
+	}
+
+	sc = sc_alloc();
+	if (sc == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	sc->sc_sock = new_sock;
+	new_sock = NULL;
+
+	spin_lock(&nn->nn_lock);
+	atomic_set(&nn->nn_timeout, 0);
+	pmnet_set_nn_state(nn, sc, 0, 0);
+	spin_unlock(&nn->nn_lock);
+
+	pmnet_register_callbacks(sc->sc_sock->sk, sc);
+	pmnet_sc_queue_work(sc, &sc->sc_rx_work);
+
+//	pmnet_initialize_handshake();
+	pmnet_sendpage(sc, pmnet_hand, sizeof(*pmnet_hand));
+
+out:
+	if (new_sock)
+		sock_release(new_sock);
+#if 0
+	if (node)
+		pmnm_node_put(node);
+	if (local_node)
+		pmnm_node_put(local_node);
+#endif
+	if (sc)
+		sc_put(sc);
+
+	memalloc_noio_restore(noio_flag);
+	return ret;
+}
+
+/*
+ * This function is invoked in response to one or more
+ * pending accepts at softIRQ level. We must drain the
+ * entire que before returning.
+ */
+
+static void pmnet_accept_many(struct work_struct *work)
+{
+	struct socket *sock = pmnet_listen_sock;
+	int	more;
+	int	err;
+
+	/*
+	 * It is critical to note that due to interrupt moderation
+	 * at the network driver level, we can't assume to get a
+	 * softIRQ for every single conn since tcp SYN packets
+	 * can arrive back-to-back, and therefore many pending
+	 * accepts may result in just 1 softIRQ. If we terminate
+	 * the pmnet_accept_one() loop upon seeing an err, what happens
+	 * to the rest of the conns in the queue? If no new SYN
+	 * arrives for hours, no softIRQ  will be delivered,
+	 * and the connections will just sit in the queue.
+	 */
+
+	for (;;) {
+		err = pmnet_accept_one(sock, &more);
+		if (!more)
+			break;
+		cond_resched();
+	}
+}
+
+
+static void pmnet_listen_data_ready(struct sock *sk)
+{
+	void (*ready)(struct sock *sk);
+
+	read_lock_bh(&sk->sk_callback_lock);
+	ready = sk->sk_user_data;
+	if (ready == NULL) { /* check for teardown race */
+		ready = sk->sk_data_ready;
+		goto out;
+	}
+
+	/* This callback may called twice when a new connection
+	 * is  being established as a child socket inherits everything
+	 * from a parent LISTEN socket, including the data_ready cb of
+	 * the parent. This leads to a hazard. In pmnet_accept_one()
+	 * we are still initializing the child socket but have not
+	 * changed the inherited data_ready callback yet when
+	 * data starts arriving.
+	 * We avoid this hazard by checking the state.
+	 * For the listening socket,  the state will be TCP_LISTEN; for the new
+	 * socket, will be  TCP_ESTABLISHED. Also, in this case,
+	 * sk->sk_user_data is not a valid function pointer.
+	 */
+
+	if (sk->sk_state == TCP_LISTEN) {
+		queue_work(pmnet_wq, &pmnet_listen_work);
+	} else {
+		ready = NULL;
+	}
+
+out:
+	read_unlock_bh(&sk->sk_callback_lock);
+	if (ready != NULL)
+		ready(sk);
+}
+
 static int pmnet_open_listening_sock(__be32 addr, __be16 port)
 {
 	struct socket *sock = NULL;
@@ -858,27 +1109,28 @@ out:
  * o2nm_this_node() doesn't work yet as we're being called while it
  * is being set up.
  */
-int pmnet_start_listening(struct o2nm_node *node)
+int pmnet_start_listening(void)
 {
 	int ret = 0;
 
 	BUG_ON(pmnet_wq != NULL);
 	BUG_ON(pmnet_listen_sock != NULL);
 
-	mlog(ML_KTHREAD, "starting pmnet thread...\n");
+	pr_info("starting pmnet thread...\n");
 	pmnet_wq = create_singlethread_workqueue("pmnet");
 	if (pmnet_wq == NULL) {
-		mlog(ML_ERROR, "unable to launch pmnet thread\n");
+		pr_info("unable to launch pmnet thread\n");
 		return -ENOMEM; /* ? */
 	}
 
-	ret = pmnet_open_listening_sock(node->nd_ipv4_address,
-			node->nd_ipv4_port);
+//	ret = pmnet_open_listening_sock(node->nd_ipv4_address,
+//			node->nd_ipv4_port);
+	ret = pmnet_open_listening_sock(inet_addr(MY_ADDR)
+			, htons(LISTEN_PORT));
 	if (ret) {
 		destroy_workqueue(pmnet_wq);
 		pmnet_wq = NULL;
-	} else
-		o2quo_conn_up(node->nd_num);
+	}
 
 	return ret;
 }
@@ -897,6 +1149,7 @@ void pmnet_stop_listening()
 	sock->sk->sk_user_data = NULL;
 	write_unlock_bh(&sock->sk->sk_callback_lock);
 
+#if 0
 	for (i = 0; i < ARRAY_SIZE(pmnet_nodes); i++) {
 		struct o2nm_node *node = o2nm_get_node_by_num(i);
 		if (node) {
@@ -904,18 +1157,45 @@ void pmnet_stop_listening()
 			o2nm_node_put(node);
 		}
 	}
+#endif
 
 	/* finish all work and tear down the work queue */
-	mlog(ML_KTHREAD, "waiting for pmnet thread to exit....\n");
+	pr_info("waiting for pmnet thread to exit....\n");
 	destroy_workqueue(pmnet_wq);
 	pmnet_wq = NULL;
 
 	sock_release(pmnet_listen_sock);
 	pmnet_listen_sock = NULL;
 
-	o2quo_conn_err(node->nd_num);
 }
-#endif
+
+/* ------------------------------------------------------------ */
+
+/* called when a connect completes and after a sock is accepted.  the
+ * rx path will see the response and mark the sc valid */
+static void pmnet_sc_connect_completed(struct work_struct *work)
+{
+	struct pmnet_sock_container *sc =
+		container_of(work, struct pmnet_sock_container,
+			     sc_connect_work);
+
+//	pmnet_initialize_handshake();
+	pmnet_sendpage(sc, pmnet_hand, sizeof(*pmnet_hand));
+	sc_put(sc);
+}
+
+/* this is called as a work_struct func. */
+static void pmnet_sc_send_keep_req(struct work_struct *work)
+{
+	struct pmnet_sock_container *sc =
+		container_of(work, struct pmnet_sock_container,
+			     sc_keepalive_work.work);
+
+	pmnet_sendpage(sc, pmnet_keep_req, sizeof(*pmnet_keep_req));
+	sc_put(sc);
+}
+
+/* ------------------------------------------------------------ */
 
 int pmnet_init(void)
 {
@@ -932,6 +1212,9 @@ int pmnet_init(void)
 	pmnet_keep_req->magic = cpu_to_be16(PMNET_MSG_KEEP_REQ_MAGIC);
 	pmnet_keep_resp->magic = cpu_to_be16(PMNET_MSG_KEEP_RESP_MAGIC);
 
+	/* start listening */
+//	pmnet_start_listening();
+
 	pmnet_wq = alloc_ordered_workqueue("pmnet", WQ_MEM_RECLAIM);
 
 	for (i = 0; i < ARRAY_SIZE(pmnet_nodes); i++) {
@@ -944,12 +1227,15 @@ int pmnet_init(void)
 		pr_info("pmnet_init::INIT_DELAYED_WORK(nn_connect_work)\n");
 		INIT_DELAYED_WORK(&nn->nn_connect_work, pmnet_start_connect);
 		queue_delayed_work(pmnet_wq, &nn->nn_connect_work, 0);
-		pr_info("pmnet_init::INIT_DELAYED_WORK(nn_connect_work) end.\n");
 
+		pr_info("pmnet_init::INIT_DELAYED_WORK(nn_connect_expired)\n");
 		INIT_DELAYED_WORK(&nn->nn_connect_expired,
 				pmnet_connect_expired);
+//		queue_delayed_work(pmnet_wq, &nn->nn_connect_expired, 100);
 
+		pr_info("pmnet_init::INIT_DELAYED_WORK(nn_still_up)\n");
 		INIT_DELAYED_WORK(&nn->nn_still_up, pmnet_still_up);
+//		queue_delayed_work(pmnet_wq, &nn->nn_still_up, 0);
 		/* until we see hb from a node we'll return einval */
 		nn->nn_persistent_error = -ENOTCONN;
 		init_waitqueue_head(&nn->nn_sc_wq);

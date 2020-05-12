@@ -21,6 +21,7 @@
 
 
 #define PORT 		(2325)
+#define LISTEN_PORT (2346)
 #define DEST_ADDR	("115.145.173.69")
 #define MY_ADDR		("115.145.173.67")
 
@@ -56,21 +57,6 @@ struct pmnet_msg
 	__be32 msg_num;
 	__u8  buf[0];
 };
-
-static u32 create_address(u8 *ip)
-{
-        u32 addr = 0;
-        int i;
-
-        for(i=0; i<4; i++)
-        {
-                addr += ip[i];
-                if(i==3)
-                        break;
-                addr <<= 8;
-        }
-        return addr;
-}
 
 static unsigned int inet_addr(char *str)
 {
@@ -224,11 +210,11 @@ void pmnet_fill_node_map(unsigned long *map, unsigned bytes);
 
 int pmnet_register_hb_callbacks(void);
 void pmnet_unregister_hb_callbacks(void);
-int pmnet_start_listening(struct o2nm_node *node);
-void pmnet_stop_listening(struct o2nm_node *node);
-void pmnet_disconnect_node(struct o2nm_node *node);
-int pmnet_num_connected_peers(void);
 #endif
+int pmnet_start_listening(void);
+void pmnet_stop_listening(void);
+void pmnet_disconnect_node(void);
+//int pmnet_num_connected_peers(void);
 
 int pmnet_init(void);
 void pmnet_exit(void);

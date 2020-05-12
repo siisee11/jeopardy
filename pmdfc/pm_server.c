@@ -73,7 +73,7 @@ char *inet_ntoa(struct in_addr *in)
 	int_ip = in->s_addr;
 
 	sprintf(str_ip, "%d.%d.%d.%d", (int_ip) & 0xFF, (int_ip >> 8) & 0xFF,
-			(int_ip >> 16) & 0xFF, (int_ip >> 16) & 0xFF);
+			(int_ip >> 16) & 0xFF, (int_ip >> 24) & 0xFF);
 
 	return str_ip;
 }
@@ -184,8 +184,8 @@ int connection_handler(void *data)
 
 	int ret; 
 	int len = 4096;
-	unsigned char in_buf[len+1];
-	unsigned char out_buf[len+1];
+	unsigned char in_buf[4097];
+	unsigned char out_buf[4098];
 	//char *tmp;
 
 	DECLARE_WAITQUEUE(recv_wait, current);
@@ -307,7 +307,7 @@ int connection_handler(void *data)
 				break;
 			}
 		}
-	}
+	} /* while(1) */
 
 out:
 	/* 
@@ -367,10 +367,6 @@ int tcp_server_accept(void)
 		accept_err =  
 			sock_create(socket->sk->sk_family, socket->type,\
 					socket->sk->sk_protocol, &accept_socket);
-		/*
-		   sock_create(PF_INET, SOCK_STREAM, IPPROTO_TCP,\
-		   &accept_socket);
-		   */
 
 		if(accept_err < 0 || !accept_socket)
 		{
@@ -743,5 +739,6 @@ static void __exit network_server_exit(void)
 	pr_info(" *** mtp | network server module unloaded | "
 			"network_server_exit *** \n");
 }
-	module_init(network_server_init)
+
+module_init(network_server_init)
 module_exit(network_server_exit)
