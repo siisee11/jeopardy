@@ -181,7 +181,6 @@ int bloom_filter_add(struct bloom_filter *filter,
 		if (ret < 0)
 			goto exit_unlock;
 
-		printk("set bit=%u", bit);
 		set_bit(bit, filter->bitmap);
 	}
 
@@ -213,7 +212,6 @@ int bloom_filter_check(struct bloom_filter *filter,
 		if (ret < 0)
 			goto exit_unlock;
 
-		printk("test bit=%u", bit);
 		if (!test_bit(bit, filter->bitmap)) {
 			*result = false;
 			break;

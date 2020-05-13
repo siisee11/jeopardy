@@ -16,6 +16,7 @@ struct pmnet_sock_container {
 	struct kref			sc_kref;
 	/* the next two are valid for the life time of the sc */
 	struct socket		*sc_sock;
+	struct pmnm_node	*sc_node;
 
 	/* all of these sc work structs hold refs on the sc while they are
 	 ** queued.  they should not be able to ref a freed sc.  the teardown

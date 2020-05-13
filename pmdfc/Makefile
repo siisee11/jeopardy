@@ -4,7 +4,7 @@ TARGET_MODULE := client
 
 obj-m := client.o
 obj-m += pm_server.o
-client-objs := pmdfc.o tcp.o bloom_filter.o
+client-objs := pmdfc.o tcp.o bloom_filter.o nodemanager.o
 
 KDIR	:= "/lib/modules/$(shell uname -r)/build"
 PWD     := $(shell pwd)
