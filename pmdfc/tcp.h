@@ -72,6 +72,8 @@ int pmnet_send_message(u32 msg_type, u32 key, void *data, u32 len,
 		       u8 target_node, int *status);
 int pmnet_send_message_vec(u32 msg_type, u32 key, struct kvec *vec,
 			   size_t veclen, u8 target_node, int *status);
+int pmnet_recv_message(u32 msg_type, u32 key, void *data, u32 len,
+		       u8 target_node);
 
 #if 0
 int pmnet_register_handler(u32 msg_type, u32 key, u32 max_len,

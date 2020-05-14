@@ -39,9 +39,10 @@ static void pmdfc_cleancache_put_page(int pool_id,
 	unsigned char *data = (unsigned char*)&key;
 	data[0] += index;
 
-	int len = 4096;
+	int len = 1024;
 	char response[10];
 	char reply[10];
+	int status = 0;
 	int ret = -1;
 
 	if (!tmem_oid_valid(&coid)) {
@@ -58,6 +59,10 @@ static void pmdfc_cleancache_put_page(int pool_id,
 		/* Send page to server */
 		memset(&reply, 0, 10);
 		strcat(reply, "PUTPAGE"); 
+
+		pmnet_send_message(0, 0, &reply, sizeof(reply),
+		       0, &status);
+		pmnet_recv_message(0, 0, &response, sizeof(response), 0);
 
 		/* add to bloom filter */
 		ret = bloom_filter_add(bf, data, 8);
@@ -96,7 +101,7 @@ static int pmdfc_cleancache_get_page(int pool_id,
 	if ( !isIn )
 		goto out;
 
-	pr_info("may be is in\n");
+	pr_info("pmdfc: may be is in\n");
 
 	printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
 			(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
@@ -113,9 +118,14 @@ static int pmdfc_cleancache_get_page(int pool_id,
 		kunmap_atomic(from_va);
 
 
-		/* Send page to server */
+		/* get page from server */
 		memset(&reply, 0, 4097);
 		strcat(reply, "GETPAGE"); 
+
+		pmnet_send_message(0, 0, &reply, sizeof(reply),
+		       0, &status);
+
+		pmnet_recv_message(0, 0, &response, sizeof(response), 0);
 
 		printk(KERN_INFO "pmdfc: GET PAGE success\n");
 
@@ -181,8 +191,6 @@ static int pmdfc_cleancache_register_ops(void)
 
 static int bloom_filter_init(void)
 {
-	unsigned char *data = "hihihellolowl";
-	bool isIn;
 	int ret = 0;
 
 	bf = bloom_filter_new(1000);
@@ -190,20 +198,21 @@ static int bloom_filter_init(void)
 	bloom_filter_add_hash_alg(bf, "sha1");
 	bloom_filter_add_hash_alg(bf, "sha256");
 
-	/*
-	ret = bloom_filter_add(bf, data, 4);
-	if ( ret < 0 )
-		pr_info("bloom_filter add fail\n");
-
-	bloom_filter_check(bf, data, 4, &isIn);
-	*/
-
 	return 0;
 }
 
 static int __init pmdfc_init(void)
 {
 	int ret;
+
+	/* initailize pmdfc's network feature */
+	pmnet_init();
+	pr_info(" *** mtp | network client init | network_client_init *** \n");
+
+	/* initialize bloom filter */
+	bloom_filter_init();
+	pr_info(" *** bloom filter | init | bloom_filter_init *** \n");
+
 
 	/* TODO: alloc many pages */
 	//	page_pool = alloc_pages(PMDFC_GFP_MASK, PMDFC_ORDER);
@@ -225,12 +234,6 @@ static int __init pmdfc_init(void)
 		printk(KERN_INFO ">> pmdfc: cleancache_disabled\n");
 	}
 
-	pmnet_init();
-	pr_info(" *** mtp | network client init | network_client_init *** \n");
-
-	/* init bloom filter */
-	bloom_filter_init();
-	pr_info(" *** bloom filter | init | bloom_filter_init *** \n");
 	
 
 	return 0;

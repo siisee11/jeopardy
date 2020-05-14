@@ -642,13 +642,6 @@ static int pmnet_tx_can_proceed(struct pmnet_node *nn,
 
 /* ------------------------------------------------------------ */
 
-static int pmnet_recv_tcp_msg(struct socket *sock, void *data, size_t len)
-{
-	struct kvec vec = { .iov_len = len, .iov_base = data, };
-	struct msghdr msg = { .msg_flags = MSG_DONTWAIT, };
-	iov_iter_kvec(&msg.msg_iter, READ, &vec, 1, len);
-	return kernel_recvmsg(sock, &msg, &vec, 1, len, msg.msg_flags);
-}
 
 static int pmnet_send_tcp_msg(struct socket *sock, struct kvec *vec,
 		size_t veclen, size_t total)
@@ -802,6 +795,27 @@ int pmnet_send_message(u32 msg_type, u32 key, void *data, u32 len,
 }
 EXPORT_SYMBOL_GPL(pmnet_send_message);
 
+static int pmnet_recv_tcp_msg(struct socket *sock, struct kvec *vec,
+		size_t veclen)
+{
+	int ret;
+	struct msghdr msg = { .msg_flags = MSG_DONTWAIT, };
+
+read_again:
+	ret = kernel_recvmsg(sock, &msg, vec, 1, veclen, msg.msg_flags);
+
+	if(ret == -EAGAIN || ret == -ERESTARTSYS)
+	{
+			pr_info(" *** mtp | error while reading: %d | "
+					"tcp_client_receive *** \n", ret);
+
+			goto read_again;
+	}
+	pr_info("Client<--PM:: kernel_recvmsg ( %s )\n", vec->iov_base);
+
+	return ret;
+}
+
 /* receive message from target node (pm_server) */
 int pmnet_recv_message(u32 msg_type, u32 key, void *data, u32 len,
 		u8 target_node)
@@ -814,22 +828,22 @@ int pmnet_recv_message(u32 msg_type, u32 key, void *data, u32 len,
 	struct msghdr msg = { .msg_flags = MSG_DONTWAIT, };
 	struct pmnet_node *nn = pmnet_nn_from_num(target_node);
 	struct pmnet_sock_container *sc = NULL;
+	struct socket *conn_socket = NULL;
+
+	DECLARE_WAIT_QUEUE_HEAD(recv_wait);
 
 	sc = nn->nn_sc;
+	conn_socket = sc->sc_sock;
 
-//	iov_iter_kvec(&msg.msg_iter, READ, &vec, 1, len);
-
-read_again:
-	ret = kernel_recvmsg(sc->sc_sock, &msg, &vec, 1, len, msg.msg_flags);
-
-	if(ret == -EAGAIN || ret == -ERESTARTSYS)
+	wait_event_timeout(recv_wait,\
+			!skb_queue_empty(&conn_socket->sk->sk_receive_queue),\
+			5*HZ);
+	if(!skb_queue_empty(&conn_socket->sk->sk_receive_queue))
 	{
-			pr_info(" *** mtp | error while reading: %d | "
-					"tcp_client_receive *** \n", ret);
-
-			goto read_again;
+		ret = pmnet_recv_tcp_msg(sc->sc_sock, &vec, len);
+		if (ret < 0)
+			pr_info("ERROR: pmnet_recv_message\n");
 	}
-	pr_info(" *** mtp | the server says: %s | tcp_client_receive *** \n", data);
 
 	return ret;
 }
@@ -1369,19 +1383,10 @@ static void pmnet_sc_connect_completed(struct work_struct *work)
 	if (tmp_ret < 0)
 		pr_info("error::pmnet_send_message\n");
 
-	conn_socket = sc->sc_sock;
-	/* wait_event */
-	wait_event_timeout(recv_wait,\
-			!skb_queue_empty(&conn_socket->sk->sk_receive_queue),\
-			5*HZ);
-	if(!skb_queue_empty(&conn_socket->sk->sk_receive_queue))
-	{
-		memset(&response, 0, 1024);
-		tmp_ret = pmnet_recv_message(0, 0, &response, sizeof(response), 0);
-		if (tmp_ret < 0)
-			pr_info("error::pmnet_recv_message\n");
-	}
-
+	memset(&response, 0, 1024);
+	tmp_ret = pmnet_recv_message(0, 0, &response, sizeof(response), 0);
+	if (tmp_ret < 0)
+		pr_info("error::pmnet_recv_message\n");
 
 //	pmnet_initialize_handshake();
 //	pmnet_sendpage(sc, pmnet_hand, sizeof(*pmnet_hand));
