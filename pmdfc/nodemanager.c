@@ -30,8 +30,12 @@ out:
 }
 EXPORT_SYMBOL_GPL(pmnm_get_node_by_num);
 
-int init_pmnm_node(struct pmnm_node *node, 
-		const char *name, char *ip, unsigned int port, int num){
+struct pmnm_node *init_pmnm_node(const char *name, 
+		const char *ip, unsigned int port, int num)
+{
+	struct pmnm_node *node = NULL;
+
+	pr_info("init_pmnm_node: name= %s, ip=%s, port=%d\n", name, ip, port);
 
 	if (strlen(name) > PMNM_MAX_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
@@ -40,18 +44,22 @@ int init_pmnm_node(struct pmnm_node *node,
 	if (node == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	strcpy(node->nd_name, name); /* use item.ci_namebuf instead? */
+	strcpy(node->nd_name, name); 
 	
 	node->nd_num = num;
 	node->nd_ipv4_address = inet_addr(ip);
 	node->nd_ipv4_port = htons(port);
 
-	printk(KERN_NOTICE "init_pmnm_node: "
-			SC_NODEF_FMT "\n", node->nd_name,
-			node->nd_num, node->nd_ipv4_address,
-			ntohs(node->nd_ipv4_port));
+	/* XXX: This printk hang why?? */
+#if 0
+	printk(KERN_NOTICE "init_pmnm_node: node %s (num %u) at %pI4:%u\n",
+			node->nd_name, node->nd_num, node->nd_ipv4_address, 
+			ntohs(node->nd_ipv4_port)); 
+#endif
 
-	return 0;
+	pr_info("pmnm: Registering node %s\n", name);
+
+	return node;
 }
 
 static void pmnm_cluster_release(void)
@@ -62,24 +70,19 @@ static void pmnm_cluster_release(void)
 void init_pmnm_cluster(void){
 	struct pmnm_cluster *cluster = NULL;
 	int ret;
+	struct pmnm_node *target_node = NULL;
+	pr_info("nodemanager: init_pmnm_cluster\n");
+
 	cluster = kzalloc(sizeof(struct pmnm_cluster), GFP_KERNEL);
 
-//	struct pmnm_node my_node = NULL;
-	struct pmnm_node *target_node = NULL;
-
-	pr_info("nodemanager.c::init_pmnm_cluster\n");
-
-	ret = init_pmnm_node(target_node, "pm_server", DEST_ADDR, PORT, 0);
-	if (ret < 0) {
-		pr_info("init_pmnm_cluster failed\n");
-		return;
-	}
+	target_node = init_pmnm_node("pm_server", DEST_ADDR, PORT, 0);
 
 	cluster->cl_nodes[0] = target_node;
-//	cluster->cl_nodes[1] = my_node;
 
 	rwlock_init(&cluster->cl_nodes_lock);
 	pmnm_single_cluster = cluster;
+
+	return;
 }
 
 void exit_pmnm_cluster(void){

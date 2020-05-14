@@ -190,13 +190,13 @@ static int bloom_filter_init(void)
 	bloom_filter_add_hash_alg(bf, "sha1");
 	bloom_filter_add_hash_alg(bf, "sha256");
 
+	/*
 	ret = bloom_filter_add(bf, data, 4);
 	if ( ret < 0 )
 		pr_info("bloom_filter add fail\n");
 
 	bloom_filter_check(bf, data, 4, &isIn);
-
-	pr_info("isIn=%d \n", isIn);
+	*/
 
 	return 0;
 }
@@ -205,7 +205,7 @@ static int __init pmdfc_init(void)
 {
 	int ret;
 
-	printk(KERN_INFO ">> pmdfc INIT\n");
+	/* TODO: alloc many pages */
 	//	page_pool = alloc_pages(PMDFC_GFP_MASK, PMDFC_ORDER);
 	page_pool = alloc_page(PMDFC_GFP_MASK);
 
@@ -236,6 +236,7 @@ static int __init pmdfc_init(void)
 	return 0;
 }
 
+/* TODO: how to exit normally??? */
 static void pmdfc_exit(void)
 {
 	bloom_filter_unref(bf);

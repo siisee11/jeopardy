@@ -27,7 +27,8 @@ static struct workqueue_struct *pmnet_wq;
 static struct work_struct pmnet_listen_work;
 
 /* PMNET nodes */
-static struct pmnet_node pmnet_nodes[PMNM_MAX_NODES];
+//static struct pmnet_node pmnet_nodes[PMNM_MAX_NODES];
+static struct pmnet_node pmnet_nodes[1];
 
 static struct pmnet_handshake *pmnet_hand;
 static struct pmnet_msg *pmnet_keep_req, *pmnet_keep_resp;
@@ -185,7 +186,7 @@ static void pmnet_set_nn_state(struct pmnet_node *nn,
 	if (was_valid && !valid && err == 0)
 		err = -ENOTCONN;
 
-	pr_info("node %u sc: %p -> %p, valid %u -> %u, err %d -> %d\n",
+	pr_info("node %u sc %p -> %p, valid %u -> %u, err %d -> %d\n",
 	     pmnet_num_from_nn(nn), nn->nn_sc, sc, nn->nn_sc_valid, valid,
 	     nn->nn_persistent_error, err);
 
@@ -203,23 +204,22 @@ static void pmnet_set_nn_state(struct pmnet_node *nn,
 		queue_delayed_work(pmnet_wq, &nn->nn_still_up,
 				   msecs_to_jiffies(pmnet_QUORUM_DELAY_MS));
 	}
+#endif
 
 	if (was_valid && !valid) {
 		if (old_sc)
 			printk(KERN_NOTICE "pmnet: No longer connected to "
 				SC_NODEF_FMT "\n", SC_NODEF_ARGS(old_sc));
-		pmnet_complete_nodes_nsw(nn);
+//		pmnet_complete_nodes_nsw(nn);
 	}
 
 	if (!was_valid && valid) {
-		o2quo_conn_up(pmnet_num_from_nn(nn));
-		cancel_delayed_work(&nn->nn_connect_expired);
+//		o2quo_conn_up(pmnet_num_from_nn(nn));
+//		cancel_delayed_work(&nn->nn_connect_expired);
 		printk(KERN_NOTICE "pmnet: %s " SC_NODEF_FMT "\n",
-		       o2nm_this_node() > sc->sc_node->nd_num ?
-		       "Connected to" : "Accepted connection from",
+		       "Connected to" ,
 		       SC_NODEF_ARGS(sc));
 	}
-#endif
 
 	/* trigger the connecting worker func as long as we're not valid,
 	 * it will back off if it shouldn't connect.  This can be called
@@ -429,7 +429,7 @@ static void pmnet_state_change(struct sock *sk)
 		goto out;
 	}
 
-	pr_info("state_change to %d\n", sk->sk_state);
+	pr_info("state_change: --> %d\n", sk->sk_state);
 
 	state_change = sc->sc_state_change;
 
@@ -605,12 +605,8 @@ static void pmnet_sendpage(struct pmnet_sock_container *sc,
 	}
 }
 
-
-
-
 static void pmnet_init_msg(struct pmnet_msg *msg, u16 data_len, u16 msg_type, u32 key)
 {
-	pr_info("pmnet_init_msg::init message\n");
 	memset(msg, 0, sizeof(struct pmnet_msg));
 	msg->magic = cpu_to_be16(PMNET_MSG_MAGIC);
 	msg->data_len = cpu_to_be16(data_len);
@@ -852,7 +848,7 @@ static void pmnet_start_connect(struct work_struct *work)
 	struct pmnet_node *nn = 
 		container_of(work, struct pmnet_node, nn_connect_work.work);
 	struct pmnet_sock_container *sc = NULL;
-	struct pmnm_node *node = NULL, *mynode = NULL;
+	struct pmnm_node *node = NULL;
 	struct socket *sock = NULL;
 	struct sockaddr_in myaddr = {0, }, remoteaddr = {0, };
 	int ret = 0, stop;
@@ -867,17 +863,14 @@ static void pmnet_start_connect(struct work_struct *work)
 	struct socket *conn_socket;
 	DECLARE_WAIT_QUEUE_HEAD(recv_wait);
 
-	pr_info("pmnet_start_connect::start\n");
+	pr_info("pmnet_start_connect: start\n");
 
 	/* watch for racing with tearing a node down */
 	node = pmnm_get_node_by_num(pmnet_num_from_nn(nn));
-	if (node == NULL)
+	if (node == NULL) {
+		printk(KERN_ERR "There is no node available\n");
 		goto out;
-
-	mynode = pmnm_get_node_by_num(1);
-	if (mynode == NULL)
-		goto out;
-
+	}
 
 	/*
 	 * sock_create allocates the sock with GFP_KERNEL. We must set
@@ -897,7 +890,7 @@ static void pmnet_start_connect(struct work_struct *work)
 		pr_info("can't create socket: %d\n", ret);
 		goto out;
 	}
-	pr_info("pmnet_start_connect::socket_create\n");
+	pr_info("pmnet_start_connect: socket_create\n");
 	sc->sc_sock = sock; /* freed by sc_kref_release */
 
 	sock->sk->sk_allocation = GFP_ATOMIC;
@@ -936,7 +929,7 @@ static void pmnet_start_connect(struct work_struct *work)
 
 	remoteaddr.sin_family = AF_INET;
 	remoteaddr.sin_addr.s_addr = node->nd_ipv4_address;
-	remoteaddr.sin_port = htons(PORT);
+	remoteaddr.sin_port = node->nd_ipv4_port;
 
 	ret = sc->sc_sock->ops->connect(sc->sc_sock,
 			(struct sockaddr *)&remoteaddr,
@@ -945,13 +938,13 @@ static void pmnet_start_connect(struct work_struct *work)
 	if (ret == -EINPROGRESS)
 		ret = 0;
 
-	pr_info("pmnet_start_connect::socket connected\n");
+	pr_info("pmnet_start_connect: socket connected\n");
 
 
 out:
 	if (ret && sc) {
-		printk(KERN_NOTICE "pmnet: Connect attempt to " 
-				" failed with errno %d\n", ret);
+		printk(KERN_NOTICE "pmnet: Connect attempt to " SC_NODEF_FMT
+		       " failed with errno %d\n", SC_NODEF_ARGS(sc), ret);
 		/* 0 err so that another will be queued and attempted
 		 * from set_nn_state 
 		 */
@@ -1416,9 +1409,9 @@ int pmnet_init(void)
 	char reply[1024];
 	int status;
 
-	DECLARE_WAIT_QUEUE_HEAD(recv_wait);
-
 	init_pmnm_cluster();
+
+	DECLARE_WAIT_QUEUE_HEAD(recv_wait);
 
 	pmnet_hand = kzalloc(sizeof(struct pmnet_handshake), GFP_KERNEL);
 	pmnet_keep_req = kzalloc(sizeof(struct pmnet_msg), GFP_KERNEL);
@@ -1462,7 +1455,6 @@ int pmnet_init(void)
 		idr_init(&nn->nn_status_idr);
 		INIT_LIST_HEAD(&nn->nn_status_list);
 	}
-
 
 	return 0;
 
