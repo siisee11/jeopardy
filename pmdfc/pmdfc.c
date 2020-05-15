@@ -91,6 +91,7 @@ static int pmdfc_cleancache_get_page(int pool_id,
 	char response[4097];
 	char reply[4097];
 
+	int status;
 	bool isIn = false;
 
 //	printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 

@@ -178,6 +178,7 @@ int bloom_filter_add(struct bloom_filter *filter,
 		if (ret < 0)
 			goto exit_unlock;
 
+		pr_info("Bloom filter: set_bit-->%d\n", bit);
 		set_bit(bit, filter->bitmap);
 	}
 
