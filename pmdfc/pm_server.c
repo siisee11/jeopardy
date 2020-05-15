@@ -29,6 +29,8 @@ MODULE_AUTHOR("Aby Sam Ross");
 static int tcp_listener_stopped = 0;
 static int tcp_acceptor_stopped = 0;
 
+void (*sc_state_change)(struct sock *sk);
+
 DEFINE_SPINLOCK(tcp_server_lock);
 
 struct tcp_conn_handler_data
@@ -77,6 +79,8 @@ char *inet_ntoa(struct in_addr *in)
 
 	return str_ip;
 }
+
+
 
 int tcp_server_send(struct socket *sock, int id, const char *buf,\
 		const size_t length, unsigned long flags)
@@ -328,6 +332,40 @@ out:
 	do_exit(0);
 }
 
+
+/* see pmnet_register_callbacks() */
+static void pmnet_state_change(struct sock *sk)
+{
+	void (*state_change)(struct sock *sk);
+
+	read_lock_bh(&sk->sk_callback_lock);
+
+	pr_info("state_change: --> %d\n", sk->sk_state);
+
+	state_change = sc_state_change;
+
+	read_unlock_bh(&sk->sk_callback_lock);
+	state_change(sk);
+}
+
+
+/*
+ * we register callbacks so we can queue work on events before calling
+ * the original callbacks.  our callbacks our careful to test user_data
+ * to discover when they've reaced with pmnet_unregister_callbacks().
+ */
+static void pmnet_register_callbacks(struct sock *sk)
+{
+	write_lock_bh(&sk->sk_callback_lock);
+
+	BUG_ON(sk->sk_user_data != NULL);
+
+	sc_state_change = sk->sk_state_change;
+	sk->sk_state_change = pmnet_state_change;
+
+	write_unlock_bh(&sk->sk_callback_lock);
+}
+
 int tcp_server_accept(void)
 {
 	int accept_err = 0;
@@ -380,6 +418,8 @@ int tcp_server_accept(void)
 		accept_socket->ops  = socket->ops;
 
 		isock = inet_csk(socket->sk);
+
+		pmnet_register_callbacks(socket->sk);
 
 		//while(1)
 		//{
@@ -656,6 +696,7 @@ err:
 	//return -1;
 	do_exit(0);
 }
+
 
 int tcp_server_start(void)
 {
