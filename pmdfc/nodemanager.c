@@ -70,17 +70,14 @@ static void pmnm_cluster_release(void)
 void init_pmnm_cluster(void){
 	struct pmnm_cluster *cluster = NULL;
 	struct pmnm_node *server_node = NULL;
-	struct pmnm_node *client_node = NULL;
 
 	pr_info("nodemanager: init_pmnm_cluster\n");
 
 	cluster = kzalloc(sizeof(struct pmnm_cluster), GFP_KERNEL);
 
 	server_node = init_pmnm_node("pm_server", DEST_ADDR, PORT, 0);
-	client_node = init_pmnm_node("client", CLIENT_ADDR, 0, 0);
 
 	cluster->cl_nodes[0] = server_node;
-	cluster->cl_nodes[1] = client_node;
 
 	rwlock_init(&cluster->cl_nodes_lock);
 	pmnm_single_cluster = cluster;
