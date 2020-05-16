@@ -63,6 +63,7 @@ int pmnet_send_message_vec(u32 msg_type, u32 key, struct kvec *vec,
 int pmnet_recv_message(u32 msg_type, u32 key, void *data, u32 len,
 		       u8 target_node);
 
+struct pmnm_node;
 int pmnet_start_listening(struct pmnm_node *node);
 void pmnet_stop_listening(struct pmnm_node *node);
 void pmnet_disconnect_node(struct pmnm_node *node);

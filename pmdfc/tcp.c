@@ -11,8 +11,9 @@
 #include <asm/uaccess.h>
 
 #include "tcp.h"
-#include "tcp_internal.h"
 #include "nodemanager.h"
+
+#include "tcp_internal.h"
 
 #define SC_NODEF_FMT "node %s (num %u) at %pI4:%u"
 #define SC_NODEF_ARGS(sc) sc->sc_node->nd_name, sc->sc_node->nd_num,	\
@@ -637,25 +638,12 @@ int pmnet_send_message(u32 msg_type, u32 key, void *data, u32 len,
 }
 EXPORT_SYMBOL_GPL(pmnet_send_message);
 
-static int pmnet_recv_tcp_msg(struct socket *sock, struct kvec *vec,
-		size_t veclen)
+static int pmnet_recv_tcp_msg(struct socket *sock, void *data, size_t len)
 {
-	int ret;
+	struct kvec vec = { .iov_len = len, .iov_base = data, };
 	struct msghdr msg = { .msg_flags = MSG_DONTWAIT, };
-
-read_again:
-	ret = kernel_recvmsg(sock, &msg, vec, 1, veclen, msg.msg_flags);
-
-	if(ret == -EAGAIN || ret == -ERESTARTSYS)
-	{
-			pr_info(" *** mtp | error while reading: %d | "
-					"tcp_client_receive *** \n", ret);
-
-			goto read_again;
-	}
-	pr_info("Client<--PM:: kernel_recvmsg ( %s )\n", (unsigned char *)vec->iov_base);
-
-	return ret;
+	iov_iter_kvec(&msg.msg_iter, READ, &vec, 1, len);
+	return sock_recvmsg(sock, &msg, MSG_DONTWAIT);
 }
 
 /* receive message from target node (pm_server) */
@@ -667,6 +655,7 @@ int pmnet_recv_message(u32 msg_type, u32 key, void *data, u32 len,
 		.iov_base = data,
 		.iov_len = len,
 	};
+	struct msghdr msg = { .msg_flags = MSG_DONTWAIT, };
 	struct pmnet_node *nn = pmnet_nn_from_num(target_node);
 	struct pmnet_sock_container *sc = NULL;
 	struct socket *conn_socket = NULL;
@@ -681,7 +670,18 @@ int pmnet_recv_message(u32 msg_type, u32 key, void *data, u32 len,
 			5*HZ);
 	if(!skb_queue_empty(&conn_socket->sk->sk_receive_queue))
 	{
-		ret = pmnet_recv_tcp_msg(sc->sc_sock, &vec, len);
+read_again:
+		ret = kernel_recvmsg(conn_socket, &msg, &vec, 1, len, msg.msg_flags);
+
+		if(ret == -EAGAIN || ret == -ERESTARTSYS)
+		{
+				pr_info(" *** mtp | error while reading: %d | "
+						"tcp_client_receive *** \n", ret);
+
+				goto read_again;
+		}
+		pr_info("Client<--PM:: kernel_recvmsg ( %s )\n", (unsigned char *)vec.iov_base);
+
 		if (ret < 0)
 			pr_info("ERROR: pmnet_recv_message\n");
 	}
@@ -706,8 +706,7 @@ static int pmnet_process_message(struct pmnet_sock_container *sc,
 		case PMNET_MSG_STATUS_MAGIC:
 			pr_info("PMNET_MSG_STATUS_MAGIC\n");
 			/* special type for returning message status */
-			goto out;
-		case PMNET_MSG_KEEP_REQ_MAGIC:
+			goto out; case PMNET_MSG_KEEP_REQ_MAGIC:
 			pr_info("PMNET_MSG_KEEP_REQ_MAGIC\n");
 			goto out;
 		case PMNET_MSG_KEEP_RESP_MAGIC:
@@ -815,15 +814,6 @@ static void pmnet_rx_until_empty(struct work_struct *work)
 	sc_put(sc);
 }
 
-
-static int pmnet_set_usertimeout(struct socket *sock)
-{
-	int user_timeout = PMNET_TCP_USER_TIMEOUT;
-
-	return kernel_setsockopt(sock, SOL_TCP, TCP_USER_TIMEOUT,
-			(char *)&user_timeout, sizeof(user_timeout));
-}
-
 static int pmnet_set_nodelay(struct socket *sock)
 {
 	int ret, val = 1;
@@ -848,6 +838,63 @@ static int pmnet_set_nodelay(struct socket *sock)
 	set_fs(oldfs);
 	return ret;
 }
+
+static int pmnet_set_usertimeout(struct socket *sock)
+{
+	int user_timeout = PMNET_TCP_USER_TIMEOUT;
+
+	return kernel_setsockopt(sock, SOL_TCP, TCP_USER_TIMEOUT,
+			(char *)&user_timeout, sizeof(user_timeout));
+}
+
+
+/* called when a connect completes and after a sock is accepted.  the
+ * rx path will see the response and mark the sc valid */
+static void pmnet_sc_connect_completed(struct work_struct *work)
+{
+	struct pmnet_sock_container *sc =
+		container_of(work, struct pmnet_sock_container,
+			     sc_connect_work);
+
+	struct socket *conn_socket;
+	int tmp_ret;
+	char response[1024];
+	char reply[1024];
+	int status;
+
+	DECLARE_WAIT_QUEUE_HEAD(recv_wait);
+
+	/* send hello message */
+	memset(&reply, 0, 1024);
+	strcat(reply, "HOLA"); 
+
+	pr_info("pmnet_sc_connect_completed::call send_message\n");
+	tmp_ret = pmnet_send_message(0, 0, &reply, sizeof(reply),
+		0, &status);
+	if (tmp_ret < 0)
+		pr_info("error::pmnet_send_message\n");
+
+	memset(&response, 0, 1024);
+	tmp_ret = pmnet_recv_message(0, 0, &response, sizeof(response), 0);
+	if (tmp_ret < 0)
+		pr_info("error::pmnet_recv_message\n");
+
+//	pmnet_initialize_handshake();
+//	pmnet_sendpage(sc, pmnet_hand, sizeof(*pmnet_hand));
+	sc_put(sc);
+}
+
+/* this is called as a work_struct func. */
+static void pmnet_sc_send_keep_req(struct work_struct *work)
+{
+	struct pmnet_sock_container *sc =
+		container_of(work, struct pmnet_sock_container,
+			     sc_keepalive_work.work);
+
+	pmnet_sendpage(sc, pmnet_keep_req, sizeof(*pmnet_keep_req));
+	sc_put(sc);
+}
+
 
 
 /* ---------------------------------------------------- */
@@ -1337,55 +1384,6 @@ void pmnet_stop_listening(struct pmnm_node *node)
 	sock_release(pmnet_listen_sock);
 	pmnet_listen_sock = NULL;
 
-}
-
-/* ------------------------------------------------------------ */
-
-/* called when a connect completes and after a sock is accepted.  the
- * rx path will see the response and mark the sc valid */
-static void pmnet_sc_connect_completed(struct work_struct *work)
-{
-	struct pmnet_sock_container *sc =
-		container_of(work, struct pmnet_sock_container,
-			     sc_connect_work);
-
-	struct socket *conn_socket;
-	int tmp_ret;
-	char response[1024];
-	char reply[1024];
-	int status;
-
-	DECLARE_WAIT_QUEUE_HEAD(recv_wait);
-
-	/* send hello message */
-	memset(&reply, 0, 1024);
-	strcat(reply, "HOLA"); 
-
-	pr_info("pmnet_sc_connect_completed::call send_message\n");
-	tmp_ret = pmnet_send_message(0, 0, &reply, sizeof(reply),
-		0, &status);
-	if (tmp_ret < 0)
-		pr_info("error::pmnet_send_message\n");
-
-	memset(&response, 0, 1024);
-	tmp_ret = pmnet_recv_message(0, 0, &response, sizeof(response), 0);
-	if (tmp_ret < 0)
-		pr_info("error::pmnet_recv_message\n");
-
-//	pmnet_initialize_handshake();
-//	pmnet_sendpage(sc, pmnet_hand, sizeof(*pmnet_hand));
-	sc_put(sc);
-}
-
-/* this is called as a work_struct func. */
-static void pmnet_sc_send_keep_req(struct work_struct *work)
-{
-	struct pmnet_sock_container *sc =
-		container_of(work, struct pmnet_sock_container,
-			     sc_keepalive_work.work);
-
-	pmnet_sendpage(sc, pmnet_keep_req, sizeof(*pmnet_keep_req));
-	sc_put(sc);
 }
 
 /* ------------------------------------------------------------ */
