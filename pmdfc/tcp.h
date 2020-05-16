@@ -20,31 +20,19 @@
 #include <linux/in.h>
 
 
-#define PORT 		(2325)
-#define LISTEN_PORT (2346)
-#define DEST_ADDR	("115.145.173.67")
-#define MY_ADDR		("115.145.173.67")
+#define PORT 			(2325)
+#define LISTEN_PORT 	(2346)
+#define DEST_ADDR		("115.145.173.67")
+#define CLIENT_ADDR		("115.145.173.67")
 
 #define PMNET_MAX_PAYLOAD_BYTES  (4096 - sizeof(struct pmnet_msg))
 
 /* same as hb delay, we're waiting for another node to recognize our hb */
 #define PMNET_RECONNECT_DELAY_MS_DEFAULT	2000
-
 #define PMNET_KEEPALIVE_DELAY_MS_DEFAULT	2000
 #define PMNET_IDLE_TIMEOUT_MS_DEFAULT		30000
-
 #define PMNET_TCP_USER_TIMEOUT			0x7fffffff
 
-
-/* struct workqueue */
-static struct workqueue_struct *pmnet_wq;
-
-#if 0
-#define SC_NODEF_FMT "node %s (num %u) at %pI4:%u"
-#define SC_NODEF_ARGS(sc) sc->sc_node->nd_name, sc->sc_node->nd_num,	\
-	&sc->sc_node->nd_ipv4_address,		\
-	ntohs(sc->sc_node->nd_ipv4_port)
-#endif
 struct pmnet_msg
 {
 	__be16 magic;
@@ -58,7 +46,7 @@ struct pmnet_msg
 	__u8  buf[0];
 };
 
-static unsigned int inet_addr(char *str)
+static unsigned int inet_addr(const char *str)
 {
 	int a,b,c,d;
 	char arr[4];
@@ -75,22 +63,10 @@ int pmnet_send_message_vec(u32 msg_type, u32 key, struct kvec *vec,
 int pmnet_recv_message(u32 msg_type, u32 key, void *data, u32 len,
 		       u8 target_node);
 
-#if 0
-int pmnet_register_handler(u32 msg_type, u32 key, u32 max_len,
-			   pmnet_msg_handler_func *func, void *data,
-			   pmnet_post_msg_handler_func *post_func,
-			   struct list_head *unreg_list);
-void pmnet_unregister_handler_list(struct list_head *list);
+int pmnet_start_listening(struct pmnm_node *node);
+void pmnet_stop_listening(struct pmnm_node *node);
+void pmnet_disconnect_node(struct pmnm_node *node);
 
-void pmnet_fill_node_map(unsigned long *map, unsigned bytes);
-
-int pmnet_register_hb_callbacks(void);
-void pmnet_unregister_hb_callbacks(void);
-#endif
-int pmnet_start_listening(void);
-void pmnet_stop_listening(void);
-void pmnet_disconnect_node(void);
-//int pmnet_num_connected_peers(void);
 
 int pmnet_init(void);
 void pmnet_exit(void);

@@ -35,15 +35,14 @@ static void pmdfc_cleancache_put_page(int pool_id,
 	void *pg_from;
 	void *pg_to;
 
-	/* hash input data */
-	unsigned char *data = (unsigned char*)&key;
-	data[0] += index;
-
-	int len = 1024;
 	char response[10];
 	char reply[10];
 	int status = 0;
 	int ret = -1;
+
+	/* hash input data */
+	unsigned char *data = (unsigned char*)&key;
+	data[0] += index;
 
 	if (!tmem_oid_valid(&coid)) {
 		printk(KERN_INFO "pmdfc: PUT PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
@@ -79,23 +78,21 @@ static int pmdfc_cleancache_get_page(int pool_id,
 		struct cleancache_filekey key,
 		pgoff_t index, struct page *page)
 {
-	u32 ind = (u32) index;
+//	u32 ind = (u32) index;
 	struct tmem_oid oid = *(struct tmem_oid *)&key;
 	char *from_va;
 	char *to_va;
+
+	char response[1024];
+	char reply[1024];
+
+	int status;
+	bool isIn = false;
 
 	/* hash input data */
 	unsigned char *data = (unsigned char*)&key;
 	data[0] += index;
 
-	char response[4097];
-	char reply[4097];
-
-	int status;
-	bool isIn = false;
-
-//	printk(KERN_INFO "pmdfc: GET PAGE pool_id=%d key=%llu,%llu,%llu index=%ld page=%p\n", pool_id, 
-//			(long long)oid.oid[0], (long long)oid.oid[1], (long long)oid.oid[2], index, page);
 	
 	bloom_filter_check(bf, data, 8, &isIn);
 
@@ -120,7 +117,7 @@ static int pmdfc_cleancache_get_page(int pool_id,
 
 
 		/* get page from server */
-		memset(&reply, 0, 4097);
+		memset(&reply, 0, 1024);
 		strcat(reply, "GETPAGE"); 
 
 		pmnet_send_message(0, 0, &reply, sizeof(reply),
@@ -192,8 +189,6 @@ static int pmdfc_cleancache_register_ops(void)
 
 static int bloom_filter_init(void)
 {
-	int ret = 0;
-
 	bf = bloom_filter_new(1000);
 	bloom_filter_add_hash_alg(bf, "md5");
 	bloom_filter_add_hash_alg(bf, "sha1");

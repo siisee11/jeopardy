@@ -45,7 +45,8 @@ struct pmnet_sock_container {
 
 	unsigned		sc_handshake_ok:1;
 
-	struct page 		*sc_page;
+	struct page 	*sc_page;
+	struct page 	*sc_clean_page;
 	size_t			sc_page_off;
 
 	/* original handlers for the sockets */

@@ -163,7 +163,6 @@ int bloom_filter_add(struct bloom_filter *filter,
 {
 	struct bloom_crypto_alg *alg;
 	int ret = 0;
-	int i;
 
 	mutex_lock(&filter->lock);
 	if (list_empty(&filter->alg_list)) {
@@ -279,9 +278,10 @@ static int test_hash(const unsigned char *data, unsigned int datalen,
 
 int test_main( void )
 {
-	u8 digest[20];
-	test_hash("hihi", 4, digest);
 	int i = 0;
+	u8 digest[20];
+
+	test_hash("hihi", 4, digest);
 
 	printk("digest: ");
 	for (i = 0; i < 4; ++i) {

@@ -332,7 +332,6 @@ out:
 	do_exit(0);
 }
 
-
 /* see pmnet_register_callbacks() */
 static void pmnet_state_change(struct sock *sk)
 {
@@ -347,7 +346,6 @@ static void pmnet_state_change(struct sock *sk)
 	read_unlock_bh(&sk->sk_callback_lock);
 	state_change(sk);
 }
-
 
 /*
  * we register callbacks so we can queue work on events before calling
@@ -373,11 +371,7 @@ int tcp_server_accept(void)
 	struct socket *accept_socket = NULL;
 	struct inet_connection_sock *isock; 
 	int id = 0;
-	/*
-	   int len = 49;
-	   unsigned char in_buf[len+1];
-	   unsigned char out_buf[len+1];
-	   */
+
 	DECLARE_WAITQUEUE(accept_wait, current);
 	/*
 	   spin_lock(&tcp_server_lock);

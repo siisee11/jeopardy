@@ -69,8 +69,8 @@ static void pmnm_cluster_release(void)
 
 void init_pmnm_cluster(void){
 	struct pmnm_cluster *cluster = NULL;
-	int ret;
 	struct pmnm_node *target_node = NULL;
+
 	pr_info("nodemanager: init_pmnm_cluster\n");
 
 	cluster = kzalloc(sizeof(struct pmnm_cluster), GFP_KERNEL);
