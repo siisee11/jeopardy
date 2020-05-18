@@ -734,6 +734,11 @@ static int pmnet_process_message(struct pmnet_sock_container *sc,
 	switch(be16_to_cpu(hdr->msg_type)) {
 		case PMNET_MSG_HOLA:
 			pr_info("PMNET_MSG_HOLA\n");
+
+			/* send hello message */
+			memset(&reply, 0, 1024);
+			strcat(reply, "HOLASI"); 
+
 			ret = pmnet_send_message(0, PMNET_MSG_HOLASI, &reply, sizeof(reply),
 				0, &status);
 			break;
@@ -750,6 +755,11 @@ static int pmnet_process_message(struct pmnet_sock_container *sc,
 
 		case PMNET_MSG_GETPAGE:
 			pr_info("PMNET_MSG_GETPAGE\n");
+
+			/* send hello message */
+			memset(&reply, 0, 1024);
+			strcat(reply, "HOLASI"); 
+
 			ret = pmnet_send_message(0, PMNET_MSG_SENDPAGE, &reply, sizeof(reply),
 				0, &status);
 			break;
@@ -907,10 +917,15 @@ static void pmnet_sc_connect_completed(struct work_struct *work)
 	if (tmp_ret < 0)
 		pr_info("error::pmnet_send_message\n");
 
+	/*
+	 * Now we will use socket->data_ready callback 
+	 */
+#if 0
 	memset(&response, 0, 1024);
 	tmp_ret = pmnet_recv_message(0, 0, &response, sizeof(response), 0);
 	if (tmp_ret < 0)
 		pr_info("error::pmnet_recv_message\n");
+#endif
 
 //	pmnet_initialize_handshake();
 //	pmnet_sendpage(sc, pmnet_hand, sizeof(*pmnet_hand));
