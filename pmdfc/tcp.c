@@ -42,11 +42,14 @@ static void pmnet_sc_send_keep_req(struct work_struct *work);
 
 static void pmnet_listen_data_ready(struct sock *sk);
 
-enum {
-	PMHB_NEGO_TIMEOUT_MSG = 1,
-	PMHB_NEGO_APPROVE_MSG = 2,
+enum pmnet_msg_type {
+	PMNET_MSG_HOLA = 0,
+	PMNET_MSG_HOLASI,
+	PMNET_MSG_ADIOS,
+	PMNET_MSG_PUTPAGE,
+	PMNET_MSG_GETPAGE,
+	PMNET_MSG_SENDPAGE,
 };
-
 
 /* get pmnet_node by number */
 static struct pmnet_node * pmnet_nn_from_num(u8 node_num)
@@ -716,7 +719,8 @@ static int pmnet_process_message(struct pmnet_sock_container *sc,
 		case PMNET_MSG_STATUS_MAGIC:
 			pr_info("PMNET_MSG_STATUS_MAGIC\n");
 			/* special type for returning message status */
-			goto out; case PMNET_MSG_KEEP_REQ_MAGIC:
+			goto out; 
+		case PMNET_MSG_KEEP_REQ_MAGIC:
 			pr_info("PMNET_MSG_KEEP_REQ_MAGIC\n");
 			goto out;
 		case PMNET_MSG_KEEP_RESP_MAGIC:
