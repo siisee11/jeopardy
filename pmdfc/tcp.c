@@ -638,6 +638,7 @@ int pmnet_send_message(u32 msg_type, u32 key, void *data, u32 len,
 		.iov_base = data,
 		.iov_len = len,
 	};
+	pr_info("pmnet_send_message %u\n", msg_type);
 	return pmnet_send_message_vec(msg_type, key, &vec, 1,
 			target_node, status);
 }
