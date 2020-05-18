@@ -29,7 +29,7 @@ static struct work_struct pmnet_listen_work;
 
 /* PMNET nodes */
 //static struct pmnet_node pmnet_nodes[PMNM_MAX_NODES];
-static struct pmnet_node pmnet_nodes[1];
+static struct pmnet_node pmnet_nodes[2];
 
 static struct pmnet_handshake *pmnet_hand;
 static struct pmnet_msg *pmnet_keep_req, *pmnet_keep_resp;
@@ -1166,11 +1166,12 @@ static int pmnet_accept_one(struct socket *sock, int *more)
 	if (ret < 0)
 		goto out;
 
-	node = pmnm_get_node_by_num(0);
-//	node = pmnm_get_node_by_ip(sin.sin_addr.s_addr);
 	printk(KERN_NOTICE "pmnet: Attempt to connect from unknown "
 		   "node at %pI4:%d\n", &sin.sin_addr.s_addr,
 		   ntohs(sin.sin_port));
+
+	node = pmnm_get_node_by_num(1);
+//	node = pmnm_get_node_by_ip(sin.sin_addr.s_addr);
 
 #if 0
 	if (pmnm_this_node() >= node->nd_num) {

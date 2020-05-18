@@ -77,7 +77,7 @@ void init_pmnm_cluster(void){
 	cluster = kzalloc(sizeof(struct pmnm_cluster), GFP_KERNEL);
 
 	server_node = init_pmnm_node("pm_server", DEST_ADDR, PORT, 0);
-	client_node = init_pmnm_node("pm_client", CLIENT_ADDR, CLIENT_PORT, 0);
+	client_node = init_pmnm_node("pm_client", CLIENT_ADDR, CLIENT_PORT, 1);
 
 	cluster->cl_nodes[0] = server_node;
 	cluster->cl_nodes[1] = client_node;
