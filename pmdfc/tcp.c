@@ -40,6 +40,8 @@ static void pmnet_sc_connect_completed(struct work_struct *work);
 static void pmnet_rx_until_empty(struct work_struct *work);
 static void pmnet_sc_send_keep_req(struct work_struct *work);
 
+static void pmnet_listen_data_ready(struct sock *sk);
+
 
 /* get pmnet_node by number */
 static struct pmnet_node * pmnet_nn_from_num(u8 node_num)
@@ -317,13 +319,11 @@ static void pmnet_register_callbacks(struct sock *sk,
 {
 	write_lock_bh(&sk->sk_callback_lock);
 
-#if 0
 	/* accepted sockets inherit the old listen socket data ready */
 	if (sk->sk_data_ready == pmnet_listen_data_ready) {
 		sk->sk_data_ready = sk->sk_user_data;
 		sk->sk_user_data = NULL;
 	}
-#endif
 
 	BUG_ON(sk->sk_user_data != NULL);
 	sk->sk_user_data = sc;
@@ -738,7 +738,7 @@ static int pmnet_advance_rx(struct pmnet_sock_container *sc)
 
 	if (sc->sc_page_off < sizeof(struct pmnet_msg)) {
 		data = page_address(sc->sc_page) + sc->sc_page_off;
-		datalen = sizeof(struct pmnet_msg) - sc->sc_page_off;
+		datlen = sizeof(struct pmnet_msg) - sc->sc_page_off;
 		ret = pmnet_recv_tcp_msg(sc->sc_sock, data, datalen);
 		if (ret > 0) {
 			sc->sc_page_off += ret;
@@ -1118,6 +1118,7 @@ static int pmnet_accept_one(struct socket *sock, int *more)
 	if (ret < 0)
 		goto out;
 
+	node = pmnm_get_node_by_num(0);
 //	node = pmnm_get_node_by_ip(sin.sin_addr.s_addr);
 	printk(KERN_NOTICE "pmnet: Attempt to connect from unknown "
 		   "node at %pI4:%d\n", &sin.sin_addr.s_addr,
@@ -1167,6 +1168,12 @@ static int pmnet_accept_one(struct socket *sock, int *more)
 		       ntohs(sin.sin_port));
 		goto out;
 	}
+
+	printk(KERN_NOTICE "pmnet: Attempt to connect from node '%s' "
+		   "at %pI4:%d now alloc sc\n",
+		   node->nd_name, &sin.sin_addr.s_addr,
+		   ntohs(sin.sin_port));
+
 
 	sc = sc_alloc(node);
 	if (sc == NULL) {
@@ -1229,7 +1236,9 @@ static void pmnet_accept_many(struct work_struct *work)
 	 */
 
 	for (;;) {
+		pr_info("pmnet_accept_one: start\n");
 		err = pmnet_accept_one(sock, &more);
+		pr_info("pmnet_accept_one: end\n");
 		if (!more)
 			break;
 		cond_resched();
@@ -1332,6 +1341,7 @@ out:
 int pmnet_start_listening(struct pmnm_node *node)
 {
 	int ret = 0;
+	int i = 0;
 
 	BUG_ON(pmnet_wq != NULL);
 	BUG_ON(pmnet_listen_sock != NULL);
@@ -1341,6 +1351,20 @@ int pmnet_start_listening(struct pmnm_node *node)
 	if (pmnet_wq == NULL) {
 		pr_info("unable to launch pmnet thread\n");
 		return -ENOMEM; /* ? */
+	}
+
+	for (i = 0; i < ARRAY_SIZE(pmnet_nodes); i++) {
+		struct pmnet_node *nn = pmnet_nn_from_num(i);
+		
+		pr_info("pmnet_init::set pmnet_node\n");
+		atomic_set(&nn->nn_timeout, 0);
+		spin_lock_init(&nn->nn_lock);
+
+		/* until we see hb from a node we'll return einval */
+		nn->nn_persistent_error = -ENOTCONN;
+		init_waitqueue_head(&nn->nn_sc_wq);
+		idr_init(&nn->nn_status_idr);
+		INIT_LIST_HEAD(&nn->nn_status_list);
 	}
 
 	ret = pmnet_open_listening_sock(node->nd_ipv4_address,
