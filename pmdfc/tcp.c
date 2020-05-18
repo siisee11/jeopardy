@@ -740,7 +740,7 @@ static int pmnet_process_message(struct pmnet_sock_container *sc,
 			strcat(reply, "HOLASI"); 
 
 			ret = pmnet_send_message(0, PMNET_MSG_HOLASI, &reply, sizeof(reply),
-				0, &status);
+				1, &status);
 			break;
 
 		case PMNET_MSG_HOLASI:
