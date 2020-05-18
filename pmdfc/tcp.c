@@ -42,7 +42,8 @@ static void pmnet_sc_send_keep_req(struct work_struct *work);
 
 static void pmnet_listen_data_ready(struct sock *sk);
 
-enum pmnet_msg_type {
+#if 0
+enum {
 	PMNET_MSG_HOLA = 0,
 	PMNET_MSG_HOLASI,
 	PMNET_MSG_ADIOS,
@@ -50,6 +51,7 @@ enum pmnet_msg_type {
 	PMNET_MSG_GETPAGE,
 	PMNET_MSG_SENDPAGE,
 };
+#endif
 
 /* get pmnet_node by number */
 static struct pmnet_node * pmnet_nn_from_num(u8 node_num)
