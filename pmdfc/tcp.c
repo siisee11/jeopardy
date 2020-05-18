@@ -709,7 +709,7 @@ static int pmnet_process_message(struct pmnet_sock_container *sc,
 	void *data;
 	size_t datalen;
 
-	pr_info("processing message\n");
+	pr_info("%s: processing message\n", __func__);
 
 	switch(be16_to_cpu(hdr->magic)) {
 		case PMNET_MSG_STATUS_MAGIC:
@@ -1283,6 +1283,7 @@ static void pmnet_accept_many(struct work_struct *work)
 	 * and the connections will just sit in the queue.
 	 */
 
+#if 0
 	for (;;) {
 		pr_info("pmnet_accept_one: start\n");
 		err = pmnet_accept_one(sock, &more);
@@ -1291,6 +1292,10 @@ static void pmnet_accept_many(struct work_struct *work)
 			break;
 		cond_resched();
 	}
+#endif
+	pr_info("pmnet_accept_one: start\n");
+	err = pmnet_accept_one(sock, &more);
+	pr_info("pmnet_accept_one: end\n");
 }
 
 
