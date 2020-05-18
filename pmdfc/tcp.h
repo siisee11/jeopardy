@@ -25,13 +25,22 @@
 #define DEST_ADDR		("115.145.173.67")
 #define CLIENT_ADDR		("115.145.173.67")
 
-#define PMNET_MAX_PAYLOAD_BYTES  (4096 - sizeof(struct pmnet_msg))
+#define PMNET_MAX_PAYLOAD_BYTES  (8192 - sizeof(struct pmnet_msg))
 
 /* same as hb delay, we're waiting for another node to recognize our hb */
 #define PMNET_RECONNECT_DELAY_MS_DEFAULT	2000
 #define PMNET_KEEPALIVE_DELAY_MS_DEFAULT	2000
 #define PMNET_IDLE_TIMEOUT_MS_DEFAULT		30000
 #define PMNET_TCP_USER_TIMEOUT			0x7fffffff
+
+enum {
+	PMNET_MSG_HOLA,
+	PMNET_MSG_HOLASI,
+	PMNET_MSG_ADIOS,
+	PMNET_MSG_PUTPAGE,
+	PMNET_MSG_GETPAGE,
+	PMNET_MSG_SENDPAGE,
+};
 
 struct pmnet_msg
 {

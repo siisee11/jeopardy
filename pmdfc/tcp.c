@@ -42,6 +42,11 @@ static void pmnet_sc_send_keep_req(struct work_struct *work);
 
 static void pmnet_listen_data_ready(struct sock *sk);
 
+enum {
+	PMHB_NEGO_TIMEOUT_MSG = 1,
+	PMHB_NEGO_APPROVE_MSG = 2,
+};
+
 
 /* get pmnet_node by number */
 static struct pmnet_node * pmnet_nn_from_num(u8 node_num)
@@ -587,9 +592,9 @@ int pmnet_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 	/* finally, convert the message header to network byte-order
 	 * 	 * and send */
 	mutex_lock(&sc->sc_send_lock);
-//	ret = pmnet_send_tcp_msg(sc->sc_sock, vec, veclen,
-//			sizeof(struct pmnet_msg) + caller_bytes);
-	ret = pmnet_send_tcp_msg(sc->sc_sock, &vec[1], veclen - 1, caller_bytes);
+	ret = pmnet_send_tcp_msg(sc->sc_sock, vec, veclen,
+			sizeof(struct pmnet_msg) + caller_bytes);
+//	ret = pmnet_send_tcp_msg(sc->sc_sock, &vec[1], veclen - 1, caller_bytes);
 	mutex_unlock(&sc->sc_send_lock);
 	if (ret < 0) {
 		pr_info("error returned from pmnet_send_tcp_msg=%d\n", ret);
@@ -699,6 +704,10 @@ static int pmnet_process_message(struct pmnet_sock_container *sc,
 {
 //	struct pmnet_node *nn = pmnet_nn_from_num(sc->sc_node->nd_num);
 	int ret = 0;
+	int status;
+	char reply[1024];
+	void *data;
+	size_t datalen;
 
 	pr_info("processing message\n");
 
@@ -722,6 +731,30 @@ static int pmnet_process_message(struct pmnet_sock_container *sc,
 			break;
 	}
 
+	switch(be16_to_cpu(hdr->msg_type)) {
+		case PMNET_MSG_HOLA:
+			pr_info("PMNET_MSG_HOLA\n");
+			ret = pmnet_send_message(0, PMNET_MSG_HOLASI, &reply, sizeof(reply),
+				0, &status);
+			break;
+
+		case PMNET_MSG_HOLASI:
+			pr_info("PMNET_MSG_HOLASI\n");
+			break;
+
+		case PMNET_MSG_PUTPAGE:
+			pr_info("PMNET_MSG_PUTPAGE\n");
+			data = page_address(sc->sc_page) + sc->sc_page_off;
+			datalen = hdr->data_len;
+			break;
+
+		case PMNET_MSG_GETPAGE:
+			pr_info("PMNET_MSG_GETPAGE\n");
+			ret = pmnet_send_message(0, PMNET_MSG_SENDPAGE, &reply, sizeof(reply),
+				0, &status);
+			break;
+	}
+
 out:
 	return ret;
 }
@@ -738,7 +771,7 @@ static int pmnet_advance_rx(struct pmnet_sock_container *sc)
 
 	if (sc->sc_page_off < sizeof(struct pmnet_msg)) {
 		data = page_address(sc->sc_page) + sc->sc_page_off;
-		datlen = sizeof(struct pmnet_msg) - sc->sc_page_off;
+		datalen = sizeof(struct pmnet_msg) - sc->sc_page_off;
 		ret = pmnet_recv_tcp_msg(sc->sc_sock, data, datalen);
 		if (ret > 0) {
 			sc->sc_page_off += ret;
@@ -869,7 +902,7 @@ static void pmnet_sc_connect_completed(struct work_struct *work)
 	strcat(reply, "HOLA"); 
 
 	pr_info("pmnet_sc_connect_completed::call send_message\n");
-	tmp_ret = pmnet_send_message(0, 0, &reply, sizeof(reply),
+	tmp_ret = pmnet_send_message(0, PMNET_MSG_HOLA, &reply, sizeof(reply),
 		0, &status);
 	if (tmp_ret < 0)
 		pr_info("error::pmnet_send_message\n");

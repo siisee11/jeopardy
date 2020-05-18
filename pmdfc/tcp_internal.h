@@ -2,9 +2,11 @@
 #define PMNET_TCP_INTERNAL_H
 
 #define PMNET_MSG_MAGIC           ((u16)0xfa55)
-#define PMNET_MSG_STATUS_MAGIC    ((u16)0xfa56)
-#define PMNET_MSG_KEEP_REQ_MAGIC  ((u16)0xfa57)
-#define PMNET_MSG_KEEP_RESP_MAGIC ((u16)0xfa58)
+#define PMNET_MSG_HOLA_MAGIC      ((u16)0xfa56)
+#define PMNET_MSG_HOLASI_MAGIC    ((u16)0xfa57)
+#define PMNET_MSG_STATUS_MAGIC    ((u16)0xfa58)
+#define PMNET_MSG_KEEP_REQ_MAGIC  ((u16)0xfa59)
+#define PMNET_MSG_KEEP_RESP_MAGIC ((u16)0xfa5a)
 
 /* we're delaying our quorum decision so that heartbeat will have timed
  * out truly dead nodes by the time we come around to making decisions

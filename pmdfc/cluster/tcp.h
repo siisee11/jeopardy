@@ -22,6 +22,7 @@
 #include <linux/inet.h>
 #include <linux/in.h>
 
+
 struct o2net_msg
 {
 	__be16 magic;
