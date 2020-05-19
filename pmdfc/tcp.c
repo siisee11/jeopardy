@@ -760,9 +760,9 @@ static int pmnet_process_message(struct pmnet_sock_container *sc,
 		case PMNET_MSG_GETPAGE:
 			pr_info("CLIENT-->SERVER: PMNET_MSG_GETPAGE\n");
 
-			data = sc->sc_clean_page;
+			data = page_addres(sc->sc_clean_page);
 			ret = pmnet_send_message(PMNET_MSG_SENDPAGE, 0, data, sizeof(struct page),
-				0, &status);
+				1, &status);
 			pr_info("SERVER-->CLIENT: PMNET_MSG_SENDPAGE\n");
 
 			break;
@@ -809,10 +809,12 @@ static int pmnet_advance_rx(struct pmnet_sock_container *sc)
 
 	pr_info("at page_off %zu\n", sc->sc_page_off);
 
-	/* do we need more payload? */
+	/* 
+	 * do we need more payload? 
+	 * Store payload to sc->sc_clean_page
+	 */
 	if (sc->sc_page_off - sizeof(struct pmnet_msg) < be16_to_cpu(hdr->data_len)) {
 		/* need more payload */
-//		data = page_address(sc->sc_page) + sc->sc_page_off;
 		data = page_address(sc->sc_clean_page) + sc->sc_page_off - sizeof(struct pmnet_msg);
 		datalen = (sizeof(struct pmnet_msg) + be16_to_cpu(hdr->data_len)) -
 			  sc->sc_page_off;
@@ -915,24 +917,15 @@ static void pmnet_sc_connect_completed(struct work_struct *work)
 	memset(&reply, 0, 1024);
 	strcat(reply, "HOLA"); 
 
-	pr_info("pmnet_sc_connect_completed::call send_message\n");
+	pr_info("pmnet_sc_connect_completed: PMNET_MSG_HOLA\n");
 	tmp_ret = pmnet_send_message(PMNET_MSG_HOLA, 0, &reply, sizeof(reply),
 		0, &status);
 	if (tmp_ret < 0)
 		pr_info("error::pmnet_send_message\n");
 
 	/*
-	 * Now we will use socket->data_ready callback 
+	 * Now we will use socket->data_ready callback for receiving
 	 */
-#if 0
-	memset(&response, 0, 1024);
-	tmp_ret = pmnet_recv_message(0, 0, &response, sizeof(response), 0);
-	if (tmp_ret < 0)
-		pr_info("error::pmnet_recv_message\n");
-#endif
-
-//	pmnet_initialize_handshake();
-//	pmnet_sendpage(sc, pmnet_hand, sizeof(*pmnet_hand));
 	sc_put(sc);
 }
 
