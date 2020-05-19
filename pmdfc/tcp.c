@@ -748,7 +748,7 @@ static int pmnet_process_message(struct pmnet_sock_container *sc,
 
 			ret = pmnet_send_message(PMNET_MSG_HOLASI, 0, &reply, sizeof(reply),
 				1, &status);
-			pr_info("SERVER-->CLIENT: PMNET_MSG_HOLASI\n");
+			pr_info("SERVER-->CLIENT: PMNET_MSG_HOLASI(%d)\n", ret);
 			break;
 
 		case PMNET_MSG_HOLASI:
@@ -765,7 +765,7 @@ static int pmnet_process_message(struct pmnet_sock_container *sc,
 			data = page_address(sc->sc_clean_page);
 			ret = pmnet_send_message(PMNET_MSG_SENDPAGE, 0, data, sizeof(struct page),
 				1, &status);
-			pr_info("SERVER-->CLIENT: PMNET_MSG_SENDPAGE\n");
+			pr_info("SERVER-->CLIENT: PMNET_MSG_SENDPAGE(%d)\n",ret);
 			break;
 
 		case PMNET_MSG_SENDPAGE:
