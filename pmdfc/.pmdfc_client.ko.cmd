@@ -1,1 +1,0 @@
-cmd_/root/git/jeopardy/pmdfc/pmdfc_client.ko := ld -r -m elf_x86_64  -z max-page-size=0x200000  --build-id  -T ./scripts/module-common.lds -o /root/git/jeopardy/pmdfc/pmdfc_client.ko /root/git/jeopardy/pmdfc/pmdfc_client.o /root/git/jeopardy/pmdfc/pmdfc_client.mod.o;  true
