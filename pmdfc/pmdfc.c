@@ -35,7 +35,7 @@ static void pmdfc_cleancache_put_page(int pool_id,
 	void *pg_from;
 	void *pg_to;
 
-	char response[10];
+	char response[4096];
 	char reply[10];
 	int status = 0;
 	int ret = -1;
@@ -59,9 +59,8 @@ static void pmdfc_cleancache_put_page(int pool_id,
 		memset(&reply, 0, 10);
 		strcat(reply, "PUTPAGE"); 
 
-		pmnet_send_message(0, 0, &reply, sizeof(reply),
+		pmnet_send_message(3, 0, pg_from, sizeof(struct page),
 		       0, &status);
-		pmnet_recv_message(0, 0, &response, sizeof(response), 0);
 
 		/* add to bloom filter */
 		ret = bloom_filter_add(bf, data, 8);
@@ -96,6 +95,7 @@ static int pmdfc_cleancache_get_page(int pool_id,
 	
 	bloom_filter_check(bf, data, 8, &isIn);
 
+	/* This page is not exist in PM */
 	if ( !isIn )
 		goto out;
 
@@ -112,18 +112,16 @@ static int pmdfc_cleancache_get_page(int pool_id,
 
 		memcpy(to_va, from_va, sizeof(struct page));
 
-		kunmap_atomic(to_va);
-		kunmap_atomic(from_va);
-
 
 		/* get page from server */
 		memset(&reply, 0, 1024);
 		strcat(reply, "GETPAGE"); 
 
-		pmnet_send_message(0, 0, &reply, sizeof(reply),
+		pmnet_send_message(4, 0, to_va, sizeof(struct page),
 		       0, &status);
 
-		pmnet_recv_message(0, 0, &response, sizeof(response), 0);
+		kunmap_atomic(to_va);
+		kunmap_atomic(from_va);
 
 		printk(KERN_INFO "pmdfc: GET PAGE success\n");
 

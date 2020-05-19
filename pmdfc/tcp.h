@@ -40,6 +40,16 @@
 #define PMNET_MSG_GETPAGE 	(4)
 #define PMNET_MSG_SENDPAGE 	(5)
 
+#if 0
+enum {
+	PMNET_MSG_HOLA = 0,
+	PMNET_MSG_HOLASI,
+	PMNET_MSG_ADIOS,
+	PMNET_MSG_PUTPAGE,
+	PMNET_MSG_GETPAGE,
+	PMNET_MSG_SENDPAGE,
+};
+#endif
 
 struct pmnet_msg
 {

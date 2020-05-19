@@ -47,7 +47,10 @@ struct pmnet_sock_container {
 
 	unsigned		sc_handshake_ok:1;
 
+	/* This struct page stores basic info(like msg) from client */
 	struct page 	*sc_page;
+
+	/* This struct page stores cleancache page from client */
 	struct page 	*sc_clean_page;
 	size_t			sc_page_off;
 

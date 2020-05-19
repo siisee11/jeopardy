@@ -42,16 +42,6 @@ static void pmnet_sc_send_keep_req(struct work_struct *work);
 
 static void pmnet_listen_data_ready(struct sock *sk);
 
-#if 0
-enum {
-	PMNET_MSG_HOLA = 0,
-	PMNET_MSG_HOLASI,
-	PMNET_MSG_ADIOS,
-	PMNET_MSG_PUTPAGE,
-	PMNET_MSG_GETPAGE,
-	PMNET_MSG_SENDPAGE,
-};
-#endif
 
 /* get pmnet_node by number */
 static struct pmnet_node * pmnet_nn_from_num(u8 node_num)
@@ -100,6 +90,10 @@ static void sc_kref_release(struct kref *kref)
 
 	if (sc->sc_page)
 		__free_page(sc->sc_page);
+
+	if (sc->sc_clean_page)
+		__free_page(sc->sc_clean_page);
+
 	kfree(sc);
 }
 
@@ -140,8 +134,10 @@ static struct pmnet_sock_container *sc_alloc(struct pmnm_node *node)
 {
 	struct pmnet_sock_container *sc, *ret = NULL;
 	struct page *page = NULL;
+	struct page *clean_page = NULL;
 
 	page = alloc_page(GFP_NOFS);
+	clean_page = alloc_page(GFP_NOFS);
 	sc = kzalloc(sizeof(*sc), GFP_NOFS);
 	if (sc == NULL || page == NULL)
 		goto out;
@@ -158,12 +154,15 @@ static struct pmnet_sock_container *sc_alloc(struct pmnm_node *node)
 
 	ret = sc;
 	sc->sc_page = page;
+	sc->sc_clean_page = clean_page;
 	sc = NULL;
 	page = NULL;
 
 out:
 	if (page)
 		__free_page(page);
+	if (clean_page)
+		__free_page(clean_page);
 	kfree(sc);
 
 	return ret;
@@ -553,6 +552,8 @@ int pmnet_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 		goto out;
 	}
 
+	pr_info("%s: caller_bytes=%ld\n", __func__);
+
 #if 0
 	pr_info("wait_event(nn->nn_sc_wq, pmnet_tx_can_proceed(nn, &sc, &ret)\n");
 	wait_event(nn->nn_sc_wq, pmnet_tx_can_proceed(nn, &sc, &ret));
@@ -599,7 +600,6 @@ int pmnet_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 	mutex_lock(&sc->sc_send_lock);
 	ret = pmnet_send_tcp_msg(sc->sc_sock, vec, veclen,
 			sizeof(struct pmnet_msg) + caller_bytes);
-//	ret = pmnet_send_tcp_msg(sc->sc_sock, &vec[1], veclen - 1, caller_bytes);
 	mutex_unlock(&sc->sc_send_lock);
 	if (ret < 0) {
 		pr_info("error returned from pmnet_send_tcp_msg=%d\n", ret);
@@ -643,7 +643,6 @@ int pmnet_send_message(u32 msg_type, u32 key, void *data, u32 len,
 		.iov_base = data,
 		.iov_len = len,
 	};
-	pr_info("pmnet_send_message %u\n", msg_type);
 	return pmnet_send_message_vec(msg_type, key, &vec, 1,
 			target_node, status);
 }
@@ -740,36 +739,32 @@ static int pmnet_process_message(struct pmnet_sock_container *sc,
 
 	switch(be16_to_cpu(hdr->msg_type)) {
 		case PMNET_MSG_HOLA:
-			pr_info("PMNET_MSG_HOLA\n");
+			pr_info("CLIENT-->SERVER: PMNET_MSG_HOLA\n");
 
 			/* send hello message */
 			memset(&reply, 0, 1024);
 			strcat(reply, "HOLASI"); 
 
-			pr_info("PMNET_MSG_HOLASI=%u\n", PMNET_MSG_HOLASI);
 			ret = pmnet_send_message(PMNET_MSG_HOLASI, 0, &reply, sizeof(reply),
 				1, &status);
 			break;
 
 		case PMNET_MSG_HOLASI:
-			pr_info("PMNET_MSG_HOLASI\n");
+			pr_info("SERVER-->CLIENT: PMNET_MSG_HOLASI\n");
 			break;
 
 		case PMNET_MSG_PUTPAGE:
-			pr_info("PMNET_MSG_PUTPAGE\n");
-			data = page_address(sc->sc_page) + sc->sc_page_off;
-			datalen = hdr->data_len;
+			pr_info("CLIENT-->SERVER: PMNET_MSG_PUTPAGE success\n");
 			break;
 
 		case PMNET_MSG_GETPAGE:
-			pr_info("PMNET_MSG_GETPAGE\n");
+			pr_info("CLIENT-->SERVER: PMNET_MSG_GETPAGE\n");
 
-			/* send hello message */
-			memset(&reply, 0, 1024);
-			strcat(reply, "HOLASI"); 
-
-			ret = pmnet_send_message(PMNET_MSG_SENDPAGE, 0, &reply, sizeof(reply),
+			data = sc->sc_clean_page;
+			ret = pmnet_send_message(PMNET_MSG_SENDPAGE, 0, data, sizeof(struct page),
 				0, &status);
+			pr_info("SERVER-->CLIENT: PMNET_MSG_SENDPAGE\n");
+
 			break;
 	}
 
@@ -817,7 +812,8 @@ static int pmnet_advance_rx(struct pmnet_sock_container *sc)
 	/* do we need more payload? */
 	if (sc->sc_page_off - sizeof(struct pmnet_msg) < be16_to_cpu(hdr->data_len)) {
 		/* need more payload */
-		data = page_address(sc->sc_page) + sc->sc_page_off;
+//		data = page_address(sc->sc_page) + sc->sc_page_off;
+		data = page_address(sc->sc_clean_page) + sc->sc_page_off - sizeof(struct pmnet_msg);
 		datalen = (sizeof(struct pmnet_msg) + be16_to_cpu(hdr->data_len)) -
 			  sc->sc_page_off;
 		ret = pmnet_recv_tcp_msg(sc->sc_sock, data, datalen);
@@ -1394,11 +1390,7 @@ out:
 
 
 /*
- * called from node manager when we should bring up our network listening
- * socket.  node manager handles all the serialization to only call this
- * once and to match it with pmnet_stop_listening().  note,
- * o2nm_this_node() doesn't work yet as we're being called while it
- * is being set up.
+ * PMNET server starts here.
  */
 int pmnet_start_listening(struct pmnm_node *node)
 {
