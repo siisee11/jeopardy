@@ -1,0 +1,1 @@
+cmd_/root/git/jeopardy/pmdfc/pmdfc_server.mod := { echo  /root/git/jeopardy/pmdfc/pm_server.o /root/git/jeopardy/pmdfc/tcp.o /root/git/jeopardy/pmdfc/nodemanager.o; echo; } > /root/git/jeopardy/pmdfc/pmdfc_server.mod

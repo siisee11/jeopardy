@@ -756,6 +756,9 @@ static int pmnet_process_message(struct pmnet_sock_container *sc,
 			break;
 
 		case PMNET_MSG_PUTPAGE:
+			from_va = page_address(sc->sc_clean_page);
+			to_va = kmap_atomic(page_pool);
+			memcpy(to_va, from_va, sizeof(struct page));
 			pr_info("CLIENT-->SERVER: PMNET_MSG_PUTPAGE success\n");
 			break;
 
@@ -821,10 +824,6 @@ static int pmnet_advance_rx(struct pmnet_sock_container *sc)
 
 	pr_info("at page_off %zu\n", sc->sc_page_off);
 
-	if (be16_to_cpu(hdr->msg_type) != 3 && 
-			be16_to_cpu(hdr->msg_type) != 5)
-		goto process;
-
 	/* 
 	 * do we need more payload? 
 	 * Store payload to sc->sc_clean_page
@@ -845,24 +844,15 @@ static int pmnet_advance_rx(struct pmnet_sock_container *sc)
 		/* we can only get here once, the first time we read
 		 * the payload.. so set ret to progress if the handler
 		 * works out. after calling this the message is toast */
-		goto process;
+		ret = pmnet_process_message(sc, hdr);
+		if (ret == 0)
+			ret = 1;
+		sc->sc_page_off = 0;
 	}
-
-
 
 out:
 	pr_info("pmnet_advance_rx: end\n");
 	return ret;
-
-process:
-	ret = pmnet_process_message(sc, hdr);
-	if (ret == 0)
-		ret = 1;
-	sc->sc_page_off = 0;
-
-	pr_info("pmnet_advance_rx: end\n");
-	return ret;
-	
 }
 
 /* this work func is triggerd by data ready.  it reads until it can read no
