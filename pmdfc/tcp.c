@@ -760,7 +760,7 @@ static int pmnet_process_message(struct pmnet_sock_container *sc,
 		case PMNET_MSG_GETPAGE:
 			pr_info("CLIENT-->SERVER: PMNET_MSG_GETPAGE\n");
 
-			data = page_addres(sc->sc_clean_page);
+			data = page_address(sc->sc_clean_page);
 			ret = pmnet_send_message(PMNET_MSG_SENDPAGE, 0, data, sizeof(struct page),
 				1, &status);
 			pr_info("SERVER-->CLIENT: PMNET_MSG_SENDPAGE\n");
