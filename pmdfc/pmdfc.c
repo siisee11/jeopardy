@@ -2,6 +2,11 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/uuid.h>
+#include <linux/sched.h>
+#include <linux/time.h>
+#include <linux/delay.h>
+#include <linux/workqueue.h>
+#include <linux/wait.h>
 
 #include "tmem.h"
 #include "tcp.h"
@@ -17,7 +22,7 @@
 struct bloom_filter *bf;
 
 /* The pool holding the compressed pages */
-struct page* page_pool;
+extern struct page* page_pool;
 
 /* Currently handled oid */
 struct tmem_oid coid = {.oid[0]=-1UL, .oid[1]=-1UL, .oid[2]=-1UL};
@@ -25,6 +30,9 @@ struct tmem_oid coid = {.oid[0]=-1UL, .oid[1]=-1UL, .oid[2]=-1UL};
 /* Global count */
 atomic_t v = ATOMIC_INIT(0);
 
+/* wait queue for cleancache_get_page */
+extern wait_queue_head_t get_page_wait_queue;
+extern int cond;
 
 /*  Clean cache operations implementation */
 static void pmdfc_cleancache_put_page(int pool_id,
@@ -59,7 +67,7 @@ static void pmdfc_cleancache_put_page(int pool_id,
 		memset(&reply, 0, 10);
 		strcat(reply, "PUTPAGE"); 
 
-		pmnet_send_message(3, 0, pg_from, sizeof(struct page),
+		pmnet_send_message(PMNET_MSG_PUTPAGE, 0, pg_from, sizeof(struct page),
 		       0, &status);
 
 		/* add to bloom filter */
@@ -91,7 +99,6 @@ static int pmdfc_cleancache_get_page(int pool_id,
 	/* hash input data */
 	unsigned char *data = (unsigned char*)&key;
 	data[0] += index;
-
 	
 	bloom_filter_check(bf, data, 8, &isIn);
 
@@ -107,18 +114,28 @@ static int pmdfc_cleancache_get_page(int pool_id,
 	if ( tmem_oid_compare(&coid, &oid) == 0 && atomic_read(&v) == 0 ) {
 		atomic_inc(&v);
 		printk(KERN_INFO "pmdfc: GET PAGE start\n");
-		to_va = kmap_atomic(page);
-		from_va = kmap_atomic(page_pool);
-
-		memcpy(to_va, from_va, sizeof(struct page));
-
 
 		/* get page from server */
 		memset(&reply, 0, 1024);
 		strcat(reply, "GETPAGE"); 
 
-		pmnet_send_message(4, 0, to_va, sizeof(struct page),
+		pmnet_send_message(PMNET_MSG_GETPAGE, 0, &reply, sizeof(reply),
 		       0, &status);
+
+		/* wait for page */
+		printk("MODULE: This moudle is goint to sleep....\n");
+		while (1)
+		{
+			cond = 0;
+			wait_event_interruptible(get_page_wait_queue, cond == 1);
+		}
+		printk("MODULE: Wakeup Wakeup I am Waked up........\n");
+
+		/* read page from page_pool */
+		from_va = kmap_atomic(page_pool);
+		to_va = kmap_atomic(page);
+
+		memcpy(to_va, from_va, sizeof(struct page));
 
 		kunmap_atomic(to_va);
 		kunmap_atomic(from_va);
@@ -198,6 +215,9 @@ static int bloom_filter_init(void)
 static int __init pmdfc_init(void)
 {
 	int ret;
+
+	// -- initialize the WAIT QUEUE head
+	init_waitqueue_head(&get_page_wait_queue);
 
 	/* initailize pmdfc's network feature */
 	pmnet_init();

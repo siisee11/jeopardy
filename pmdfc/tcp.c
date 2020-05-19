@@ -39,9 +39,12 @@ static void pmnet_shutdown_sc(struct work_struct *work);
 static void pmnet_sc_connect_completed(struct work_struct *work);
 static void pmnet_rx_until_empty(struct work_struct *work);
 static void pmnet_sc_send_keep_req(struct work_struct *work);
-
 static void pmnet_listen_data_ready(struct sock *sk);
 
+/* extern value in pmdfc.c */
+struct page* page_pool;
+wait_queue_head_t get_page_wait_queue;
+int cond;
 
 /* get pmnet_node by number */
 static struct pmnet_node * pmnet_nn_from_num(u8 node_num)
@@ -55,7 +58,6 @@ static u8 pmnet_num_from_nn(struct pmnet_node *nn)
 	BUG_ON(nn == NULL);
 	return nn - pmnet_nodes;
 }
-
 
 static int pmnet_prep_nsw(struct pmnet_node *nn, struct pmnet_status_wait *nsw)
 {
@@ -439,7 +441,6 @@ static void pmnet_sendpage(struct pmnet_sock_container *sc,
 	ssize_t ret;
 
 	while (1) {
-		pr_info("Client-->PM:: socket sendpage\n");
 		mutex_lock(&sc->sc_send_lock);
 		ret = sc->sc_sock->ops->sendpage(sc->sc_sock,
 						 virt_to_page(kmalloced_virt),
@@ -506,7 +507,6 @@ static int pmnet_send_tcp_msg(struct socket *sock, struct kvec *vec,
 		goto out;
 	}
 
-	pr_info("Client-->PM:: kernel_sendmsg ( %s )\n", (unsigned char*)vec->iov_base);
 	ret = kernel_sendmsg(sock, &msg, vec, veclen, total);
 	if (likely(ret == total))
 		return 0;
@@ -713,6 +713,7 @@ static int pmnet_process_message(struct pmnet_sock_container *sc,
 	char reply[1024];
 	void *data;
 	size_t datalen;
+	char *to_va, from_va;
 
 	pr_info("%s: processing message\n", __func__);
 
@@ -747,6 +748,7 @@ static int pmnet_process_message(struct pmnet_sock_container *sc,
 
 			ret = pmnet_send_message(PMNET_MSG_HOLASI, 0, &reply, sizeof(reply),
 				1, &status);
+			pr_info("SERVER-->CLIENT: PMNET_MSG_HOLASI\n");
 			break;
 
 		case PMNET_MSG_HOLASI:
@@ -764,6 +766,16 @@ static int pmnet_process_message(struct pmnet_sock_container *sc,
 			ret = pmnet_send_message(PMNET_MSG_SENDPAGE, 0, data, sizeof(struct page),
 				1, &status);
 			pr_info("SERVER-->CLIENT: PMNET_MSG_SENDPAGE\n");
+			break;
+
+		case PMNET_MSG_SENDPAGE:
+			pr_info("SERVER-->CLIENT: PMNET_MSG_SENDPAGE\n");
+			from_va = page_address(sc->sc_clean_page);
+			to_va = kmap_atomic(page_pool);
+			memcpy(to_va, from_va, sizeof(struct page));
+
+			printk("WORK QUEUE: time up MODULE !! wake up !!!! \n");
+			cond = 1;
 
 			break;
 	}
@@ -809,6 +821,10 @@ static int pmnet_advance_rx(struct pmnet_sock_container *sc)
 
 	pr_info("at page_off %zu\n", sc->sc_page_off);
 
+	if (be16_to_cpu(hdr->msg_type) != 3 && 
+			be16_to_cpu(hdr->msg_type) != 5)
+		goto process;
+
 	/* 
 	 * do we need more payload? 
 	 * Store payload to sc->sc_clean_page
@@ -829,15 +845,24 @@ static int pmnet_advance_rx(struct pmnet_sock_container *sc)
 		/* we can only get here once, the first time we read
 		 * the payload.. so set ret to progress if the handler
 		 * works out. after calling this the message is toast */
-		ret = pmnet_process_message(sc, hdr);
-		if (ret == 0)
-			ret = 1;
-		sc->sc_page_off = 0;
+		goto process;
 	}
+
+
 
 out:
 	pr_info("pmnet_advance_rx: end\n");
 	return ret;
+
+process:
+	ret = pmnet_process_message(sc, hdr);
+	if (ret == 0)
+		ret = 1;
+	sc->sc_page_off = 0;
+
+	pr_info("pmnet_advance_rx: end\n");
+	return ret;
+	
 }
 
 /* this work func is triggerd by data ready.  it reads until it can read no
