@@ -746,7 +746,8 @@ static int pmnet_process_message(struct pmnet_sock_container *sc,
 			memset(&reply, 0, 1024);
 			strcat(reply, "HOLASI"); 
 
-			ret = pmnet_send_message(0, PMNET_MSG_HOLASI, &reply, sizeof(reply),
+			pr_info("PMNET_MSG_HOLASI=%u\n", PMNET_MSG_HOLASI);
+			ret = pmnet_send_message(PMNET_MSG_HOLASI, 0, &reply, sizeof(reply),
 				1, &status);
 			break;
 
@@ -767,7 +768,7 @@ static int pmnet_process_message(struct pmnet_sock_container *sc,
 			memset(&reply, 0, 1024);
 			strcat(reply, "HOLASI"); 
 
-			ret = pmnet_send_message(0, PMNET_MSG_SENDPAGE, &reply, sizeof(reply),
+			ret = pmnet_send_message(PMNET_MSG_SENDPAGE, 0, &reply, sizeof(reply),
 				0, &status);
 			break;
 	}
@@ -919,7 +920,7 @@ static void pmnet_sc_connect_completed(struct work_struct *work)
 	strcat(reply, "HOLA"); 
 
 	pr_info("pmnet_sc_connect_completed::call send_message\n");
-	tmp_ret = pmnet_send_message(0, PMNET_MSG_HOLA, &reply, sizeof(reply),
+	tmp_ret = pmnet_send_message(PMNET_MSG_HOLA, 0, &reply, sizeof(reply),
 		0, &status);
 	if (tmp_ret < 0)
 		pr_info("error::pmnet_send_message\n");
