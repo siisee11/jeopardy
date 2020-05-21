@@ -667,8 +667,9 @@ int pmnet_recv_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 	struct pmnet_node *nn = pmnet_nn_from_num(target_node);
 
 	struct socket *conn_socket = NULL;
-	struct pmnet_msg *hdr;
 	void *response;
+
+	struct msghdr msghdr = {.msg_flags = MSG_DONTWAIT,};
 
 	DECLARE_WAIT_QUEUE_HEAD(recv_wait);
 
@@ -721,8 +722,8 @@ int pmnet_recv_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 	if(!skb_queue_empty(&conn_socket->sk->sk_receive_queue))
 	{
 read_again:
-		ret = kernel_recvmsg(conn_socket, &msg, &vec, veclen, 
-				sizeof(struct pmnet_msg) + caller_bytes);
+		ret = kernel_recvmsg(conn_socket, &msghdr, vec, veclen, 
+				sizeof(struct pmnet_msg) + caller_bytes, MSG_DONTWAIT);
 
 		if(ret == -EAGAIN || ret == -ERESTARTSYS)
 		{
@@ -732,13 +733,10 @@ read_again:
 				goto read_again;
 		}
 
-		hdr = (void *)vec.iov_base[0];
-		response = (void *)vec.iov_base[1];
-
 		pr_info("Client<--PM:: ( msg_type=%u, data_len=%u )\n", 
-				be16_to_cpu(hdr->msg_type), be16_to_cpu(hdr->data_len));
+				be16_to_cpu(msg->msg_type), be16_to_cpu(msg->data_len));
 
-		if (be16_to_cpu(hdr->msg_type) == msg_type) 
+		if (be16_to_cpu(msg->msg_type) == msg_type) 
 		{
 			pr_info("recv_message: msg_type matched\n");
 			*status = 1;
@@ -761,14 +759,14 @@ EXPORT_SYMBOL_GPL(pmnet_recv_message_vec);
 
 /* receive message from target node (pm_server) */
 int pmnet_recv_message(u32 msg_type, u32 key, void *data, u32 len,
-		u8 target_node)
+		u8 target_node, int *status)
 {
 	struct kvec vec = {
 		.iov_base = data,
 		.iov_len = len,
 	};
 	return pmnet_recv_message_vec(msg_type, key, &vec, 1,
-			target_node);
+			target_node, status);
 }
 EXPORT_SYMBOL_GPL(pmnet_recv_message);
 
@@ -785,7 +783,7 @@ static int pmnet_process_message(struct pmnet_sock_container *sc,
 	char reply[1024];
 	void *data;
 	size_t datalen;
-	char *to_va, from_va;
+	char *to_va, *from_va;
 
 	pr_info("%s: processing message\n", __func__);
 
