@@ -98,7 +98,6 @@ static int pmnet_process_message(int sockfd, struct pmnet_msg *hdr)
 
 			/* send hello message */
 			memset(&reply, 0, 1024);
-			strcat(reply, "HOLASI"); 
 
 			ret = pmnet_send_message(sockfd, PMNET_MSG_HOLASI, 0, 
 				reply, 0);
@@ -113,18 +112,21 @@ static int pmnet_process_message(int sockfd, struct pmnet_msg *hdr)
 		case PMNET_MSG_PUTPAGE:
 			from_va = msg_in->page;
 			memcpy(saved_page, from_va, 4096);
-			printf("CLIENT-->SERVER: PMNET_MSG_PUTPAGE success\n");
+			ret = pmnet_send_message(sockfd, PMNET_MSG_SUCCESS, 0, 
+				reply, 0);
+			printf("SERVER-->CLIENT: PMNET_MSG_SUCCESS(%d)\n", ret);
 			break;
 
 		case PMNET_MSG_GETPAGE:
 			printf("CLIENT-->SERVER: PMNET_MSG_GETPAGE\n");
+			ret = pmnet_send_message(sockfd, PMNET_MSG_SENDPAGE, 0, 
+				saved_page, 4096);
 
-//			printf("SERVER-->CLIENT: PMNET_MSG_SENDPAGE(%d)\n",ret);
+			printf("SERVER-->CLIENT: PMNET_MSG_SENDPAGE(%d)\n",ret);
 			break;
 
 		case PMNET_MSG_SENDPAGE:
 			printf("SERVER-->CLIENT: PMNET_MSG_SENDPAGE\n");
-			printf("WORK QUEUE: time up MODULE !! wake up !!!! \n");
 
 			break;
 	}

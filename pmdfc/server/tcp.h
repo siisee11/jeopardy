@@ -37,8 +37,9 @@
 #define PMNET_MSG_HOLASI	(1)
 #define PMNET_MSG_ADIOS 	(2)
 #define PMNET_MSG_PUTPAGE 	(3)
-#define PMNET_MSG_GETPAGE 	(4)
-#define PMNET_MSG_SENDPAGE 	(5)
+#define PMNET_MSG_SUCCESS 	(4)
+#define PMNET_MSG_GETPAGE 	(5)
+#define PMNET_MSG_SENDPAGE 	(6)
 
 #if 0
 enum {
