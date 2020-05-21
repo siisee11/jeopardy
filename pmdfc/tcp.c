@@ -656,24 +656,64 @@ static int pmnet_recv_tcp_msg(struct socket *sock, void *data, size_t len)
 	return sock_recvmsg(sock, &msg, MSG_DONTWAIT);
 }
 
-/* receive message from target node (pm_server) */
-int pmnet_recv_message(u32 msg_type, u32 key, void *data, u32 len,
-		u8 target_node)
+int pmnet_recv_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
+		size_t caller_veclen, u8 target_node, int *status)
 {
-	int ret;
-	struct kvec vec = {
-		.iov_base = data,
-		.iov_len = len,
-	};
-	struct msghdr msg = { .msg_flags = MSG_DONTWAIT, };
-	struct pmnet_node *nn = pmnet_nn_from_num(target_node);
+	int ret = 0;
+	struct pmnet_msg *msg = NULL;
+	size_t veclen, caller_bytes = 0;
+	struct kvec *vec = NULL;
 	struct pmnet_sock_container *sc = NULL;
+	struct pmnet_node *nn = pmnet_nn_from_num(target_node);
+
 	struct socket *conn_socket = NULL;
+	struct pmnet_msg *hdr;
+	void *response;
 
 	DECLARE_WAIT_QUEUE_HEAD(recv_wait);
 
+	if (pmnet_wq == NULL) {
+		pr_info("attempt to tx without pmnetd running\n");
+		ret = -ESRCH;
+		goto out;
+	}
+
+	if (caller_veclen == 0) {
+		pr_info("caller_veclen is 0\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	caller_bytes = iov_length((struct iovec *)caller_vec, caller_veclen);
+	if (caller_bytes > PMNET_MAX_PAYLOAD_BYTES) {
+		pr_info("caller_bytes(%ld) too large\n", caller_bytes);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	*status = 0;
+
 	sc = nn->nn_sc;
 	conn_socket = sc->sc_sock;
+
+	veclen = caller_veclen + 1;
+	vec = kmalloc(sizeof(struct kvec) * veclen, GFP_ATOMIC);
+	if (vec == NULL) {
+		pr_info("failed to %zu element kvec!\n", veclen);
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	msg = kmalloc(sizeof(struct pmnet_msg), GFP_ATOMIC);
+	if (!msg) {
+		pr_info("failed to allocate a pmnet_msg!\n");
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	vec[0].iov_len = sizeof(struct pmnet_msg);
+	vec[0].iov_base = msg;
+	memcpy(&vec[1], caller_vec, caller_veclen * sizeof(struct kvec));
 
 	wait_event_timeout(recv_wait,\
 			!skb_queue_empty(&conn_socket->sk->sk_receive_queue),\
@@ -681,7 +721,8 @@ int pmnet_recv_message(u32 msg_type, u32 key, void *data, u32 len,
 	if(!skb_queue_empty(&conn_socket->sk->sk_receive_queue))
 	{
 read_again:
-		ret = kernel_recvmsg(conn_socket, &msg, &vec, 1, len, msg.msg_flags);
+		ret = kernel_recvmsg(conn_socket, &msg, &vec, veclen, 
+				sizeof(struct pmnet_msg) + caller_bytes);
 
 		if(ret == -EAGAIN || ret == -ERESTARTSYS)
 		{
@@ -690,13 +731,44 @@ read_again:
 
 				goto read_again;
 		}
-		pr_info("Client<--PM:: kernel_recvmsg ( %s )\n", (unsigned char *)vec.iov_base);
+
+		hdr = (void *)vec.iov_base[0];
+		response = (void *)vec.iov_base[1];
+
+		pr_info("Client<--PM:: ( msg_type=%u, data_len=%u )\n", 
+				be16_to_cpu(hdr->msg_type), be16_to_cpu(hdr->data_len));
+
+		if (be16_to_cpu(hdr->msg_type) == msg_type) 
+		{
+			pr_info("recv_message: msg_type matched\n");
+			*status = 1;
+		}
 
 		if (ret < 0)
 			pr_info("ERROR: pmnet_recv_message\n");
 	}
 
+
+out:
+	if (sc)
+		sc_put(sc);
+	kfree(vec);
+	kfree(msg);
 	return ret;
+}
+EXPORT_SYMBOL_GPL(pmnet_recv_message_vec);
+
+
+/* receive message from target node (pm_server) */
+int pmnet_recv_message(u32 msg_type, u32 key, void *data, u32 len,
+		u8 target_node)
+{
+	struct kvec vec = {
+		.iov_base = data,
+		.iov_len = len,
+	};
+	return pmnet_recv_message_vec(msg_type, key, &vec, 1,
+			target_node);
 }
 EXPORT_SYMBOL_GPL(pmnet_recv_message);
 
