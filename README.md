@@ -3,7 +3,7 @@
   ![Contributions welcome](https://img.shields.io/badge/contributions-welcome-orange.svg)
  [![Maintenance](https://img.shields.io/maintenance/yes/2020)](https://GitHub.com/siisee11/jeopardy/graphs/commit-activity)
   
- <h1> MYPIC </h1>
+ <h1> JEOPARDY </h1>
  
  <p>
    <b>System is in jeopardy</b>
@@ -12,8 +12,6 @@
 
  
 </div>
-
-# JEOPARDY
 
 
 ## Directory
