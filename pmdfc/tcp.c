@@ -149,7 +149,8 @@ static struct pmnet_sock_container *sc_alloc(struct pmnm_node *node)
 
 	INIT_WORK(&sc->sc_connect_work, pmnet_sc_connect_completed);
 	INIT_DELAYED_WORK(&sc->sc_keepalive_work, pmnet_sc_send_keep_req);
-	INIT_WORK(&sc->sc_rx_work, pmnet_rx_until_empty);
+	// comment out for sync server
+//	INIT_WORK(&sc->sc_rx_work, pmnet_rx_until_empty);
 	INIT_WORK(&sc->sc_shutdown_work, pmnet_shutdown_sc);
 
 //	timer_setup(&sc->sc_idle_timeout, pmnet_idle_timer, 0);
@@ -342,7 +343,9 @@ static void pmnet_register_callbacks(struct sock *sk,
 
 	sc->sc_data_ready = sk->sk_data_ready;
 	sc->sc_state_change = sk->sk_state_change;
-	sk->sk_data_ready = pmnet_data_ready;
+
+	//TODO: comment out for sync server
+//	sk->sk_data_ready = pmnet_data_ready;
 	sk->sk_state_change = pmnet_state_change;
 
 	mutex_init(&sc->sc_send_lock);
@@ -547,12 +550,10 @@ int pmnet_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 
 	caller_bytes = iov_length((struct iovec *)caller_vec, caller_veclen);
 	if (caller_bytes > PMNET_MAX_PAYLOAD_BYTES) {
-		pr_info("caller_bytes(%ld) too large\n", caller_bytes);
+		pr_info("caller_bytes(%zu) too large\n", caller_bytes);
 		ret = -EINVAL;
 		goto out;
 	}
-
-	pr_info("%s: caller_bytes=%ld\n", __func__);
 
 #if 0
 	pr_info("wait_event(nn->nn_sc_wq, pmnet_tx_can_proceed(nn, &sc, &ret)\n");
@@ -669,7 +670,8 @@ int pmnet_recv_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 	struct socket *conn_socket = NULL;
 	void *response;
 
-	struct msghdr msghdr = {.msg_flags = MSG_DONTWAIT,};
+//	struct msghdr msghdr = {.msg_flags = MSG_DONTWAIT,};
+	struct msghdr msghdr = {.msg_flags = MSG_WAITALL,};
 
 	DECLARE_WAIT_QUEUE_HEAD(recv_wait);
 
@@ -723,7 +725,7 @@ int pmnet_recv_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 	{
 read_again:
 		ret = kernel_recvmsg(conn_socket, &msghdr, vec, veclen, 
-				sizeof(struct pmnet_msg) + caller_bytes, MSG_DONTWAIT);
+				sizeof(struct pmnet_msg) + caller_bytes, msghdr.msg_flags);
 
 		if(ret == -EAGAIN || ret == -ERESTARTSYS)
 		{
@@ -1002,15 +1004,21 @@ static void pmnet_sc_connect_completed(struct work_struct *work)
 	memset(&reply, 0, 1024);
 	strcat(reply, "HOLA"); 
 
-	pr_info("pmnet_sc_connect_completed: PMNET_MSG_HOLA\n");
+	pr_info("CLIENT-->SERVER: PMNET_MSG_HOLA\n");
 	tmp_ret = pmnet_send_message(PMNET_MSG_HOLA, 0, &reply, sizeof(reply),
 		0, &status);
 	if (tmp_ret < 0)
 		pr_info("error::pmnet_send_message\n");
 
 	/*
-	 * Now we will use socket->data_ready callback for receiving
+	 * TODO: Comment out below code for async server.
 	 */
+	tmp_ret = pmnet_recv_message(PMNET_MSG_HOLASI, 0, &response, sizeof(response),
+			0, &status);
+	if (tmp_ret < 0)
+		pr_info("error::pmnet_recv_message\n");
+	pr_info("SERVER-->CLIENT: PMNET_MSG_HOLASI\n");
+
 	sc_put(sc);
 }
 

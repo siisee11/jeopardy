@@ -43,8 +43,7 @@ static void pmdfc_cleancache_put_page(int pool_id,
 	void *pg_from;
 	void *pg_to;
 
-	char response[4096];
-	char reply[10];
+	char response[1024];
 	int status = 0;
 	int ret = -1;
 
@@ -60,20 +59,28 @@ static void pmdfc_cleancache_put_page(int pool_id,
 		tmem_oid_print(&coid);
 
 		pg_from = kmap_atomic(page);
-		pg_to = kmap_atomic(page_pool);
-		memcpy(pg_to, pg_from, sizeof(struct page));
 
 		/* Send page to server */
-		memset(&reply, 0, 10);
-		strcat(reply, "PUTPAGE"); 
+		/* TODO: sizeof(struct page) or 4096 */
 
-		pmnet_send_message(PMNET_MSG_PUTPAGE, 0, pg_from, sizeof(struct page),
+		pr_info("CLIENT-->SERVER: PMNET_MSG_PUTPAGE\n");
+		ret = pmnet_send_message(PMNET_MSG_PUTPAGE, 0, pg_from, 4096,
 		       0, &status);
 
-		/* add to bloom filter */
-		ret = bloom_filter_add(bf, data, 8);
-		if ( ret < 0 )
-			pr_info("bloom_filter add fail\n");
+		ret = pmnet_recv_message(PMNET_MSG_SUCCESS, 0, &response, sizeof(response),
+			0, &status);
+
+		if (status == 1)
+		{
+			/* 
+			 * if pmnet put page success
+			 * add to bloom filter 
+			 */
+			ret = bloom_filter_add(bf, data, 8);
+			if ( ret < 0 )
+				pr_info("bloom_filter add fail\n");
+		}
+
 
 		/* unmap kmapped space */
 		kunmap_atomic(pg_from);
@@ -87,10 +94,10 @@ static int pmdfc_cleancache_get_page(int pool_id,
 {
 //	u32 ind = (u32) index;
 	struct tmem_oid oid = *(struct tmem_oid *)&key;
-	char *from_va;
 	char *to_va;
+	int ret;
 
-	char response[1024];
+	char response[4096];
 	char reply[1024];
 
 	int status;
@@ -122,23 +129,16 @@ static int pmdfc_cleancache_get_page(int pool_id,
 		pmnet_send_message(PMNET_MSG_GETPAGE, 0, &reply, sizeof(reply),
 		       0, &status);
 
-		/* wait for page */
-		printk("MODULE: This moudle is goint to sleep....\n");
-		while (1)
-		{
-			cond = 0;
-			wait_event_interruptible(get_page_wait_queue, cond == 1);
-		}
-		printk("MODULE: Wakeup Wakeup I am Waked up........\n");
+		ret = pmnet_recv_message(PMNET_MSG_SUCCESS, 0, &response, sizeof(response),
+			0, &status);
 
-		/* read page from page_pool */
-		from_va = kmap_atomic(page_pool);
 		to_va = kmap_atomic(page);
 
-		memcpy(to_va, from_va, sizeof(struct page));
+		// TODO: copy sizeof(struct page) or 4096 
+		memcpy(to_va, response, 4096);
+//		memcpy(to_va, response, sizeof(struct page));
 
 		kunmap_atomic(to_va);
-		kunmap_atomic(from_va);
 
 		printk(KERN_INFO "pmdfc: GET PAGE success\n");
 
