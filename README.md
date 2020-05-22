@@ -1,16 +1,40 @@
+<div align="center">
+  
+  ![Contributions welcome](https://img.shields.io/badge/contributions-welcome-orange.svg)
+ [![Maintenance](https://img.shields.io/maintenance/yes/2020)](https://GitHub.com/siisee11/jeopardy/graphs/commit-activity)
+  
+ <h1> MYPIC </h1>
+ 
+ <p>
+   <b>System is in jeopardy</b>
+ </p>
+    
+
+ 
+</div>
+
 # JEOPARDY
-System is in jeopardy.
+
 
 ## Directory
 JIFS - My own file system
+
 chaning hash - conventional chaining hash
+
 device - read/write or control device
+
 fio - fio benchmark test
+
 hotring - ring structured chaining hash introduced in FAST'20
+
 kernel modules - examples about kernel module
+
 pmdfc - pmdfc codes
+
 pmdk_practice - pmdk examples
+
 radix_tree - linux kernel radix tree implementation for userspace
+
 settings - my personal environment setting
 
 ## Time Stamp
