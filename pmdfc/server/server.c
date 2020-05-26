@@ -41,7 +41,11 @@ int pmnet_send_message(int sockfd, uint32_t msg_type, uint32_t key,
 		void *data, uint16_t datalen)
 {
 	int ret = 0;
+
+	/* TODO: send message by sendmmsg() */
+	struct msghdr msghdr1;
 	struct pmnet_msg *msg = NULL;
+	struct iovec iov_msg[2];
 
 	msg = calloc(1, sizeof(struct pmnet_msg));
 	if (!msg) {
@@ -51,8 +55,21 @@ int pmnet_send_message(int sockfd, uint32_t msg_type, uint32_t key,
 	}
 
 	pmnet_init_msg(msg, datalen, msg_type, key); 
+
+	memset(iov_msg, 0, sizeof(iov_msg));
+	iov_msg[0].iov_base = msg;
+	iov_msg[0].iov_len = sizeof(struct pmnet_msg);
+	iov_msg[1].iov_base = data;
+	iov_msg[1].iov_len = datalen;
+
+	memset(&msghdr1, 0, sizeof(msghdr1));
+	msghdr1.msg_iov = iov_msg;
+	msghdr1.msg_iovlen = 2;
 	
-	ret = write(sockfd, msg, sizeof(struct pmnet_msg)); 
+	/* send message and data */
+//	ret = write(sockfd, msg, sizeof(struct pmnet_msg)); 
+//	ret = write(sockfd, data, datalen); 
+	ret = sendmsg(sockfd, &msghdr1, MSG_DONTWAIT);
 
 out:
 	return ret;
@@ -74,7 +91,6 @@ static int pmnet_process_message(int sockfd, struct pmnet_msg *hdr)
 	switch(ntohs(hdr->magic)) {
 		case PMNET_MSG_STATUS_MAGIC:
 			printf("PMNET_MSG_STATUS_MAGIC\n");
-			/* special type for returning message status */
 			goto out; 
 		case PMNET_MSG_KEEP_REQ_MAGIC:
 			printf("PMNET_MSG_KEEP_REQ_MAGIC\n");
@@ -100,7 +116,7 @@ static int pmnet_process_message(int sockfd, struct pmnet_msg *hdr)
 			memset(&reply, 0, 1024);
 
 			ret = pmnet_send_message(sockfd, PMNET_MSG_HOLASI, 0, 
-				reply, 0);
+				reply, 1024);
 
 			printf("SERVER-->CLIENT: PMNET_MSG_HOLASI(%d)\n", ret);
 			break;
@@ -110,10 +126,13 @@ static int pmnet_process_message(int sockfd, struct pmnet_msg *hdr)
 			break;
 
 		case PMNET_MSG_PUTPAGE:
+			printf("CLIENT-->SERVER: PMNET_MSG_PUTPAGE\n");
+			/* TODO: segmentation fault occur */
 			from_va = msg_in->page;
 			memcpy(saved_page, from_va, 4096);
+			memset(&reply, 0, 1024);
 			ret = pmnet_send_message(sockfd, PMNET_MSG_SUCCESS, 0, 
-				reply, 0);
+				reply, 1024);
 			printf("SERVER-->CLIENT: PMNET_MSG_SUCCESS(%d)\n", ret);
 			break;
 
@@ -140,7 +159,7 @@ out:
 static int pmnet_advance_rx(int sockfd)
 {
 	struct pmnet_msg *hdr;
-	int ret = 0;
+	int ret;
 	void *data;
 	size_t datalen;
 
@@ -149,12 +168,17 @@ static int pmnet_advance_rx(int sockfd)
 	if (msg_in->page_off < sizeof(struct pmnet_msg)) {
 		data = msg_in->hdr + msg_in->page_off;
 		datalen = sizeof(struct pmnet_msg) - msg_in->page_off;
+		printf("first read datalen=%zu\n", datalen);
 		ret = read(sockfd, data, datalen);
+
+		/* return value 0 means socket disconnected */
+		printf("read ret=%d\n", ret);
+
 		if (ret > 0) {
 			msg_in->page_off += ret;
 			if (msg_in->page_off == sizeof(struct pmnet_msg)) {
 				hdr = msg_in->hdr;
-				if (hdr->data_len > PMNET_MAX_PAYLOAD_BYTES)
+				if (ntohs(hdr->data_len) > PMNET_MAX_PAYLOAD_BYTES)
 					ret = -EOVERFLOW;
 			}
 		}
@@ -217,37 +241,6 @@ static void pmnet_rx_until_empty(int sockfd)
 	}
 }
 
-//	Function designed for chat between client and server. 
-void func(int sockfd) 
-{ 
-	void *pmnet_msg; 
-	char buff[MAX];
-	int n; 
-	// infinite loop for chat 
-	for (;;) { 
-		bzero(buff, MAX); 
-
-		// read the message from client and copy it in buffer 
-		read(sockfd, buff, sizeof(buff)); 
-		// print buffer which contains the client contents 
-		printf("From client: %s\t To client : ", buff); 
-		bzero(buff, MAX); 
-		n = 0; 
-		// copy server message in the buffer 
-		while ((buff[n++] = getchar()) != '\n') 
-			; 
-
-		// and send that buffer to client 
-		write(sockfd, buff, sizeof(buff)); 
-
-		// if msg contains "Exit" then server exit and chat ended. 
-		if (strncmp("exit", buff, 4) == 0) { 
-			printf("Server Exit...\n"); 
-			break; 
-		} 
-	} 
-} 
-
 void init_msg()
 {
 	void *page;
@@ -271,6 +264,8 @@ int main()
 	struct sockaddr_in servaddr, cli; 
 
 	init_msg();
+
+	saved_page = calloc(1, 4096);
 
 	// socket create and verification 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0); 
