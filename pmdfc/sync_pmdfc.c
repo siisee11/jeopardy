@@ -61,6 +61,8 @@ static void pmdfc_cleancache_put_page(int pool_id,
 
 		pg_from = kmap_atomic(page);
 		pg_to = kmap_atomic(page_pool);
+
+		/* TODO: sizeof(struct page) or 4096 */
 		memcpy(pg_to, pg_from, 4096);
 //		memcpy(pg_to, pg_from, sizeof(struct page));
 
@@ -69,7 +71,6 @@ static void pmdfc_cleancache_put_page(int pool_id,
 		strcat(reply, "PUTPAGE"); 
 
 		/* Send page to server */
-		/* TODO: sizeof(struct page) or 4096 */
 
 		pr_info("CLIENT-->SERVER: PMNET_MSG_PUTPAGE\n");
 		ret = pmnet_send_message(PMNET_MSG_PUTPAGE, 0, &reply, 1024,
@@ -141,7 +142,7 @@ static int pmdfc_cleancache_get_page(int pool_id,
 		pmnet_send_message(PMNET_MSG_GETPAGE, 0, &reply, sizeof(reply),
 		       0, &status);
 
-		ret = pmnet_recv_message(PMNET_MSG_SUCCESS, 0, &response, 4096,
+		ret = pmnet_recv_message(PMNET_MSG_SENDPAGE, 0, &response, 4096,
 			0, &status);
 
 		to_va = kmap_atomic(page);
@@ -149,8 +150,8 @@ static int pmdfc_cleancache_get_page(int pool_id,
 
 		// TODO: copy sizeof(struct page) or 4096 
 //		memcpy(to_va, response, 4096);
-		memcpy(to_va, from_va, sizeof(struct page));
-//		memcpy(to_va, from_va, 4096);
+//		memcpy(to_va, from_va, sizeof(struct page));
+		memcpy(to_va, from_va, 4096);
 
 		kunmap_atomic(to_va);
 		kunmap_atomic(from_va);

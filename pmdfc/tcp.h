@@ -22,7 +22,7 @@
 
 #define PORT 			(2325)
 #define CLIENT_PORT 	(2346)
-#define DEST_ADDR		("115.145.173.67")
+#define DEST_ADDR		("115.145.173.69")
 #define CLIENT_ADDR		("10.0.2.15")
 
 #define PMNET_MAX_PAYLOAD_BYTES  (8192 - sizeof(struct pmnet_msg))
