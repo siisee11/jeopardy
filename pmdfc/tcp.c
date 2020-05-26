@@ -628,8 +628,8 @@ int pmnet_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 
 out:
 //	pmnet_debug_del_nst(&nst); /* must be before dropping sc and node */
-	if (sc)
-		sc_put(sc);
+//	if (sc)
+//		sc_put(sc);
 	kfree(vec);
 	kfree(msg);
 //	pmnet_complete_nsw(nn, &nsw, 0, 0, 0);
@@ -700,15 +700,14 @@ int pmnet_recv_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 
 	*status = 0;
 
-	pr_info("%s: sc = nn->nn_sc\n", __func__);
 	sc = nn->nn_sc;
 	if (sc == NULL)
 		pr_info("%s: sc = NULL\n", __func__);
 	conn_socket = sc->sc_sock;
 	if (conn_socket == NULL)
 		pr_info("%s: conn_socket = NULL\n", __func__);
-
-	pr_info("%s: veclen = \n", __func__);
+	if (conn_socket->sk == NULL)
+		pr_info("%s: conn_socket->sk = NULL\n", __func__);
 
 	veclen = caller_veclen + 1;
 	vec = kmalloc(sizeof(struct kvec) * veclen, GFP_ATOMIC);
@@ -718,8 +717,6 @@ int pmnet_recv_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 		goto out;
 	}
 
-	pr_info("%s: msg = \n", __func__);
-
 	msg = kmalloc(sizeof(struct pmnet_msg), GFP_ATOMIC);
 	if (!msg) {
 		pr_info("failed to allocate a pmnet_msg!\n");
@@ -727,20 +724,16 @@ int pmnet_recv_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 		goto out;
 	}
 
-	pr_info("%s: vec[0]= \n", __func__);
-
 	vec[0].iov_len = sizeof(struct pmnet_msg);
 	vec[0].iov_base = msg;
 	memcpy(&vec[1], caller_vec, caller_veclen * sizeof(struct kvec));
 
-	pr_info("%s: wait_event_timeout\n", __func__);
 	wait_event_timeout(recv_wait,\
 			!skb_queue_empty(&conn_socket->sk->sk_receive_queue),\
 			5*HZ);
 	if(!skb_queue_empty(&conn_socket->sk->sk_receive_queue))
 	{
 read_again:
-		pr_info("%s: call kernel_recvmsg\n", __func__);
 		ret = kernel_recvmsg(conn_socket, &msghdr, vec, veclen, 
 				sizeof(struct pmnet_msg) + caller_bytes, msghdr.msg_flags);
 
@@ -752,8 +745,7 @@ read_again:
 				goto read_again;
 		}
 
-		msleep_interruptible(1000);
-		pr_info("Client<--PM:: ( msg_type=%u, data_len=%u )\n", 
+		pr_info("Client<--SERVER: ( msg_type=%u, data_len=%u )\n", 
 				be16_to_cpu(msg->msg_type), be16_to_cpu(msg->data_len));
 
 		if (be16_to_cpu(msg->msg_type) == msg_type) 
@@ -768,8 +760,8 @@ read_again:
 
 
 out:
-	if (sc)
-		sc_put(sc);
+//	if (sc)
+//		sc_put(sc);
 	kfree(vec);
 	kfree(msg);
 	return ret;
@@ -1018,7 +1010,6 @@ static void pmnet_sc_connect_completed(struct work_struct *work)
 
 	DECLARE_WAIT_QUEUE_HEAD(recv_wait);
 
-#if 0
 	/* send hello message */
 	memset(&reply, 0, 1024);
 	strcat(reply, "HOLA"); 
@@ -1037,9 +1028,8 @@ static void pmnet_sc_connect_completed(struct work_struct *work)
 	if (tmp_ret < 0)
 		pr_info("error: pmnet_recv_message\n");
 	pr_info("SERVER-->CLIENT: PMNET_MSG_HOLASI\n");
-#endif 
 	
-	sc_put(sc);
+//	sc_put(sc);
 	pr_info("%s: finished\n", __func__);
 }
 
