@@ -670,6 +670,10 @@ int pmnet_recv_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 	struct socket *conn_socket = NULL;
 	void *response;
 
+	/* XXX: DONTWAIT works WAITALL doesn't work */
+	/* solved --> WAITALL wait until recv all data 
+	 * It blocked because sender send a portion of data 
+	 */
 //	struct msghdr msghdr = {.msg_flags = MSG_DONTWAIT,};
 	struct msghdr msghdr = {.msg_flags = MSG_WAITALL,};
 
@@ -696,8 +700,15 @@ int pmnet_recv_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 
 	*status = 0;
 
+	pr_info("%s: sc = nn->nn_sc\n", __func__);
 	sc = nn->nn_sc;
+	if (sc == NULL)
+		pr_info("%s: sc = NULL\n", __func__);
 	conn_socket = sc->sc_sock;
+	if (conn_socket == NULL)
+		pr_info("%s: conn_socket = NULL\n", __func__);
+
+	pr_info("%s: veclen = \n", __func__);
 
 	veclen = caller_veclen + 1;
 	vec = kmalloc(sizeof(struct kvec) * veclen, GFP_ATOMIC);
@@ -707,6 +718,8 @@ int pmnet_recv_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 		goto out;
 	}
 
+	pr_info("%s: msg = \n", __func__);
+
 	msg = kmalloc(sizeof(struct pmnet_msg), GFP_ATOMIC);
 	if (!msg) {
 		pr_info("failed to allocate a pmnet_msg!\n");
@@ -714,16 +727,20 @@ int pmnet_recv_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 		goto out;
 	}
 
+	pr_info("%s: vec[0]= \n", __func__);
+
 	vec[0].iov_len = sizeof(struct pmnet_msg);
 	vec[0].iov_base = msg;
 	memcpy(&vec[1], caller_vec, caller_veclen * sizeof(struct kvec));
 
+	pr_info("%s: wait_event_timeout\n", __func__);
 	wait_event_timeout(recv_wait,\
 			!skb_queue_empty(&conn_socket->sk->sk_receive_queue),\
 			5*HZ);
 	if(!skb_queue_empty(&conn_socket->sk->sk_receive_queue))
 	{
 read_again:
+		pr_info("%s: call kernel_recvmsg\n", __func__);
 		ret = kernel_recvmsg(conn_socket, &msghdr, vec, veclen, 
 				sizeof(struct pmnet_msg) + caller_bytes, msghdr.msg_flags);
 
@@ -735,6 +752,7 @@ read_again:
 				goto read_again;
 		}
 
+		msleep_interruptible(1000);
 		pr_info("Client<--PM:: ( msg_type=%u, data_len=%u )\n", 
 				be16_to_cpu(msg->msg_type), be16_to_cpu(msg->data_len));
 
@@ -1000,6 +1018,7 @@ static void pmnet_sc_connect_completed(struct work_struct *work)
 
 	DECLARE_WAIT_QUEUE_HEAD(recv_wait);
 
+#if 0
 	/* send hello message */
 	memset(&reply, 0, 1024);
 	strcat(reply, "HOLA"); 
@@ -1008,7 +1027,7 @@ static void pmnet_sc_connect_completed(struct work_struct *work)
 	tmp_ret = pmnet_send_message(PMNET_MSG_HOLA, 0, &reply, sizeof(reply),
 		0, &status);
 	if (tmp_ret < 0)
-		pr_info("error::pmnet_send_message\n");
+		pr_info("error: pmnet_send_message\n");
 
 	/*
 	 * TODO: Comment out below code for async server.
@@ -1016,10 +1035,12 @@ static void pmnet_sc_connect_completed(struct work_struct *work)
 	tmp_ret = pmnet_recv_message(PMNET_MSG_HOLASI, 0, &response, sizeof(response),
 			0, &status);
 	if (tmp_ret < 0)
-		pr_info("error::pmnet_recv_message\n");
+		pr_info("error: pmnet_recv_message\n");
 	pr_info("SERVER-->CLIENT: PMNET_MSG_HOLASI\n");
-
+#endif 
+	
 	sc_put(sc);
+	pr_info("%s: finished\n", __func__);
 }
 
 /* this is called as a work_struct func. */
@@ -1034,9 +1055,7 @@ static void pmnet_sc_send_keep_req(struct work_struct *work)
 }
 
 
-
 /* ---------------------------------------------------- */
-
 
 /* 
  * this work func is kicked whenever a path sets the nn state which doesn't
