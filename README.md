@@ -1,16 +1,39 @@
-# JEOPARDY
-Let's make my system jeopardy!
+<div align="center">
+  
+  ![Contributions welcome](https://img.shields.io/badge/contributions-welcome-orange.svg)
+ [![Maintenance](https://img.shields.io/maintenance/yes/2020)](https://GitHub.com/siisee11/jeopardy/graphs/commit-activity)
+  
+ <h1> JEOPARDY </h1>
+ 
+ <p>
+   <b>System is in jeopardy</b>
+ </p>
+    
 
-## how to make device file.
+ 
+</div>
 
-use ndctl to make /dev/dax0.0 with option --mode=devdax
 
-```ndctl create-namespace --force --reconfig=namespace0.0 --mode=devdax --align=2M```
+## Directory
+JIFS - My own file system
 
-use ndctl to make /dev/pmem0 with option --mode=fsdax
+chaning hash - conventional chaining hash
 
-```ndctl create-namespace --force --reconfig=namespace0.0 --mode=fsdax --map=mem```
+device - read/write or control device
 
+fio - fio benchmark test
+
+hotring - ring structured chaining hash introduced in FAST'20
+
+kernel modules - examples about kernel module
+
+pmdfc - pmdfc codes
+
+pmdk_practice - pmdk examples
+
+radix_tree - linux kernel radix tree implementation for userspace
+
+settings - my personal environment setting
 
 ## Time Stamp
 2019/08/18 - create repository.
