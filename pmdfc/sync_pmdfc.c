@@ -73,7 +73,7 @@ static void pmdfc_cleancache_put_page(int pool_id,
 		/* Send page to server */
 
 		pr_info("CLIENT-->SERVER: PMNET_MSG_PUTPAGE\n");
-		ret = pmnet_send_message(PMNET_MSG_PUTPAGE, 0, &reply, 1024,
+		ret = pmnet_send_message(PMNET_MSG_PUTPAGE, 0, pg_from, 4096,
 		       0, &status);
 
 		pr_info("%s: pmnet_recv_message start\n", __func__);
@@ -149,9 +149,9 @@ static int pmdfc_cleancache_get_page(int pool_id,
 		from_va = kmap_atomic(page_pool);
 
 		// TODO: copy sizeof(struct page) or 4096 
-//		memcpy(to_va, response, 4096);
+		memcpy(to_va, response, 4096);
 //		memcpy(to_va, from_va, sizeof(struct page));
-		memcpy(to_va, from_va, 4096);
+//		memcpy(to_va, from_va, 4096);
 
 		kunmap_atomic(to_va);
 		kunmap_atomic(from_va);
