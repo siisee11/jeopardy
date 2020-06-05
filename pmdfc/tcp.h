@@ -41,6 +41,10 @@
 #define PMNET_MSG_GETPAGE 	(5)
 #define PMNET_MSG_SENDPAGE 	(6)
 
+#ifndef PAGE_SIZE
+# define PAGE_SIZE 4096
+#endif
+
 #if 0
 enum {
 	PMNET_MSG_HOLA = 0,

@@ -59,12 +59,13 @@ static void pmdfc_cleancache_put_page(int pool_id,
 		coid = oid;
 		tmem_oid_print(&coid);
 
-		pg_from = kmap_atomic(page);
-		pg_to = kmap_atomic(page_pool);
+//		pg_from = kmap_atomic(page);
+//		pg_to = kmap_atomic(page_pool);
+		pg_from = page_address(page);
+		pg_to = page_address(page_pool);
 
 		/* TODO: sizeof(struct page) or 4096 */
-		memcpy(pg_to, pg_from, 4096);
-//		memcpy(pg_to, pg_from, sizeof(struct page));
+		memcpy(pg_to, pg_from, PAGE_SIZE);
 
 		/* get page from server */
 		memset(&reply, 0, 1024);
@@ -73,7 +74,7 @@ static void pmdfc_cleancache_put_page(int pool_id,
 		/* Send page to server */
 
 		pr_info("CLIENT-->SERVER: PMNET_MSG_PUTPAGE\n");
-		ret = pmnet_send_message(PMNET_MSG_PUTPAGE, 0, pg_from, 4096,
+		ret = pmnet_send_message(PMNET_MSG_PUTPAGE, oid.oid[0], pg_from, PAGE_SIZE,
 		       0, &status);
 
 		pr_info("%s: pmnet_recv_message start\n", __func__);
@@ -110,7 +111,7 @@ static int pmdfc_cleancache_get_page(int pool_id,
 	char *to_va, *from_va;
 	int ret;
 
-	char response[4096];
+	char response[PAGE_SIZE];
 	char reply[1024];
 
 	int status;
@@ -142,16 +143,16 @@ static int pmdfc_cleancache_get_page(int pool_id,
 		pmnet_send_message(PMNET_MSG_GETPAGE, 0, &reply, sizeof(reply),
 		       0, &status);
 
-		ret = pmnet_recv_message(PMNET_MSG_SENDPAGE, 0, &response, 4096,
+		ret = pmnet_recv_message(PMNET_MSG_SENDPAGE, 0, &response, PAGE_SIZE,
 			0, &status);
 
 		to_va = kmap_atomic(page);
 		from_va = kmap_atomic(page_pool);
 
 		// TODO: copy sizeof(struct page) or 4096 
-		memcpy(to_va, response, 4096);
+		memcpy(to_va, response, PAGE_SIZE);
 //		memcpy(to_va, from_va, sizeof(struct page));
-//		memcpy(to_va, from_va, 4096);
+//		memcpy(to_va, from_va, PAGE_SIZE);
 
 		kunmap_atomic(to_va);
 		kunmap_atomic(from_va);
