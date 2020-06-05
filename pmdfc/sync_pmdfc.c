@@ -95,8 +95,8 @@ static void pmdfc_cleancache_put_page(int pool_id,
 		}
 
 		/* unmap kmapped space */
-		kunmap_atomic(pg_from);
-		kunmap_atomic(pg_to);
+//		kunmap_atomic(pg_from);
+//		kunmap_atomic(pg_to);
 
 		printk(KERN_INFO "pmdfc: PUT PAGE success\n");
 	}
@@ -146,16 +146,17 @@ static int pmdfc_cleancache_get_page(int pool_id,
 		ret = pmnet_recv_message(PMNET_MSG_SENDPAGE, 0, &response, PAGE_SIZE,
 			0, &status);
 
-		to_va = kmap_atomic(page);
-		from_va = kmap_atomic(page_pool);
+//		to_va = kmap_atomic(page);
+//		from_va = kmap_atomic(page_pool);
+		to_va = page_address(page);
 
 		// TODO: copy sizeof(struct page) or 4096 
 		memcpy(to_va, response, PAGE_SIZE);
 //		memcpy(to_va, from_va, sizeof(struct page));
 //		memcpy(to_va, from_va, PAGE_SIZE);
 
-		kunmap_atomic(to_va);
-		kunmap_atomic(from_va);
+//		kunmap_atomic(to_va);
+//		kunmap_atomic(from_va);
 
 		printk(KERN_INFO "pmdfc: GET PAGE success\n");
 
