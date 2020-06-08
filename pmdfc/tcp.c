@@ -12,7 +12,6 @@
 
 #include "tcp.h"
 #include "nodemanager.h"
-
 #include "tcp_internal.h"
 
 #define SC_NODEF_FMT "node %s (num %u) at %pI4:%u"
