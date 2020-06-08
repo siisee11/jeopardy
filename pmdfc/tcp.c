@@ -471,6 +471,7 @@ static void pmnet_init_msg(struct pmnet_msg *msg, u16 data_len, u16 msg_type, u3
 	msg->sys_status = cpu_to_be32(PMNET_ERR_NONE);
 	msg->status = 0;
 	msg->key = cpu_to_be32(key);
+	msg->index = cpu_to_be32(index);
 }
 
 
@@ -522,7 +523,7 @@ out:
 	return ret;
 }
 
-int pmnet_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
+int pmnet_send_message_vec(u32 msg_type, u32 key, u32 index, struct kvec *caller_vec,
 		size_t caller_veclen, u8 target_node, int *status)
 {
 	int ret = 0;
@@ -578,7 +579,7 @@ int pmnet_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 		goto out;
 	}
 
-	pmnet_init_msg(msg, caller_bytes, msg_type, key);
+	pmnet_init_msg(msg, caller_bytes, msg_type, key, index);
 
 	vec[0].iov_len = sizeof(struct pmnet_msg);
 	vec[0].iov_base = msg;
@@ -636,14 +637,14 @@ out:
 }
 EXPORT_SYMBOL_GPL(pmnet_send_message_vec);
 
-int pmnet_send_message(u32 msg_type, u32 key, void *data, u32 len,
+int pmnet_send_message(u32 msg_type, u32 key, u32 index, void *data, u32 len,
 		u8 target_node, int *status)
 {
 	struct kvec vec = {
 		.iov_base = data,
 		.iov_len = len,
 	};
-	return pmnet_send_message_vec(msg_type, key, &vec, 1,
+	return pmnet_send_message_vec(msg_type, key, index, &vec, 1,
 			target_node, status);
 }
 EXPORT_SYMBOL_GPL(pmnet_send_message);
