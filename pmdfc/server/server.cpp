@@ -97,6 +97,8 @@ static int pmnet_process_message(int sockfd, struct pmnet_msg *hdr)
 	void *data;
 	size_t datalen;
 	void *to_va, *from_va;
+	uint64_t key;
+	uint64_t index;
 
 	printf("%s: processing message\n", __func__);
 
@@ -141,22 +143,27 @@ static int pmnet_process_message(int sockfd, struct pmnet_msg *hdr)
 
 		case PMNET_MSG_PUTPAGE: {
 			printf("CLIENT-->SERVER: PMNET_MSG_PUTPAGE\n");
-			/* TODO: segmentation fault occur */
-			hashTable->Insert(keys[10], values[10]);
+			key = ntohl(hdr->key);
+			index = ntohl(hdr->index);
+			printf("GOT PAGE with key=%lu, index=%lu\n", key, index);
+			hashTable->Insert(key, values[9]);
 			from_va = msg_in->page;
 			memcpy(saved_page, from_va, PAGE_SIZE);
 			memset(&reply, 0, 1024);
 			ret = pmnet_send_message(sockfd, PMNET_MSG_SUCCESS, 0, 
 				reply, 1024);
 			printf("SERVER-->CLIENT: PMNET_MSG_SUCCESS(%d)\n", ret);
-			auto value = hashTable->Get(keys[10]);
-			printf("HASH GET: value =%d\n", value);
+			auto value = hashTable->Get(key);
+			printf("HASH PUT: value =%d\n", value);
 			break;
 			}
 
 		case PMNET_MSG_GETPAGE:{
 			printf("CLIENT-->SERVER: PMNET_MSG_GETPAGE\n");
-			auto value = hashTable->Get(keys[10]);
+			key = ntohl(hdr->key);
+			index = ntohl(hdr->index);
+			printf("SEND PAGE with key=%lu, index=%lu\n", key, index);
+			auto value = hashTable->Get(key);
 			printf("HASH GET: value =%d\n", value);
 			ret = pmnet_send_message(sockfd, PMNET_MSG_SENDPAGE, 0, 
 				saved_page, PAGE_SIZE);

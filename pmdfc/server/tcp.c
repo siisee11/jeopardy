@@ -756,8 +756,9 @@ static int pmnet_process_message(struct pmnet_sock_container *sc,
 			break;
 
 		case PMNET_MSG_PUTPAGE:
+			pr_info("Got key=%lu\n", be32_to_cpu(hdr->key));
 			from_va = page_address(sc->sc_clean_page);
-			to_va = kmap_atomic(page_pool);
+			to_va = page_address(page_pool);
 			memcpy(to_va, from_va, sizeof(struct page));
 			pr_info("CLIENT-->SERVER: PMNET_MSG_PUTPAGE success\n");
 			break;
