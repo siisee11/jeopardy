@@ -9,6 +9,9 @@ Persistent Memory Distributed File Cache
 
 ```rmmod ****.ko``` or ```make unload``` to remove module.
 
+## Tries and Errors
+
+Client send --> Server recv successes only once.
 
 ## Reference
 
