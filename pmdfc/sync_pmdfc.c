@@ -72,7 +72,7 @@ static void pmdfc_cleancache_put_page(int pool_id,
 		/* Send page to server */
 
 		pr_info("CLIENT-->SERVER: PMNET_MSG_PUTPAGE\n");
-		ret = pmnet_send_message(PMNET_MSG_PUTPAGE, (long)oid.oid[0], pg_from, PAGE_SIZE,
+		ret = pmnet_send_message(PMNET_MSG_PUTPAGE, (long)oid.oid[0], index, pg_from, PAGE_SIZE,
 		       0, &status);
 
 		pr_info("%s: pmnet_recv_message start\n", __func__);
@@ -134,7 +134,7 @@ static int pmdfc_cleancache_get_page(int pool_id,
 		memset(&reply, 0, 1024);
 		strcat(reply, "GETPAGE"); 
 
-		pmnet_send_message(PMNET_MSG_GETPAGE, (long)oid.oid[0], &reply, sizeof(reply),
+		pmnet_send_message(PMNET_MSG_GETPAGE, (long)oid.oid[0], index, &reply, sizeof(reply),
 		       0, &status);
 
 		ret = pmnet_recv_message(PMNET_MSG_SENDPAGE, 0, &response, PAGE_SIZE,
