@@ -6,9 +6,6 @@
 #include "util/pair.h"
 #include "src/CCEH.h"
 
-
-
-
 int main(int argc, char* argv[]){
 	const size_t initialSize = 1024*16*4;
 	const size_t from = argc>=4? atoi(argv[3]) : 1024; 
