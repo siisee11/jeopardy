@@ -1,0 +1,233 @@
+crash> dis -r __do_page_fault+853
+0xffffffff810fff00 <__do_page_fault>:   nopl   0x0(%rax,%rax,1) [FTRACE NOP]
+0xffffffff810fff05 <__do_page_fault+5>: push   %rbp
+0xffffffff810fff06 <__do_page_fault+6>: mov    %gs:0x19c40,%rax
+0xffffffff810fff0f <__do_page_fault+15>:        mov    %rsp,%rbp
+0xffffffff810fff12 <__do_page_fault+18>:        push   %r15
+0xffffffff810fff14 <__do_page_fault+20>:        push   %r14
+0xffffffff810fff16 <__do_page_fault+22>:        push   %r13
+0xffffffff810fff18 <__do_page_fault+24>:        push   %r12
+0xffffffff810fff1a <__do_page_fault+26>:        mov    %rdi,%r14
+0xffffffff810fff1d <__do_page_fault+29>:        push   %rbx
+0xffffffff810fff1e <__do_page_fault+30>:        mov    %rsi,%r12
+0xffffffff810fff21 <__do_page_fault+33>:        mov    %rdx,%rbx
+0xffffffff810fff24 <__do_page_fault+36>:        sub    $0x30,%rsp
+0xffffffff810fff28 <__do_page_fault+40>:        mov    0x828(%rax),%rax
+0xffffffff810fff2f <__do_page_fault+47>:        prefetcht0 0x78(%rax)
+0xffffffff810fff33 <__do_page_fault+51>:        mov    0x24dc747(%rip),%ecx        # 0xffffffff835dc680 <kmmio_count>
+0xffffffff810fff39 <__do_page_fault+57>:        test   %ecx,%ecx
+0xffffffff810fff3b <__do_page_fault+59>:        jne    0xffffffff8110022d <__do_page_fault+813>
+0xffffffff810fff41 <__do_page_fault+65>:        mov    %rbx,%r8
+0xffffffff810fff44 <__do_page_fault+68>:        and    $0xfffffffffffff000,%r8
+0xffffffff810fff4b <__do_page_fault+75>:        cmp    $0xffffffffff600000,%r8
+0xffffffff810fff52 <__do_page_fault+82>:        je     0xffffffff810fff6c <__do_page_fault+108>
+0xffffffff810fff54 <__do_page_fault+84>:        jmpq   0xffffffff811000da <__do_page_fault+474>
+0xffffffff810fff59 <__do_page_fault+89>:        movabs $0xfffffffffff000,%rax
+0xffffffff810fff63 <__do_page_fault+99>:        cmp    %rax,%rbx
+0xffffffff810fff39 <__do_page_fault+57>:        test   %ecx,%ecx
+0xffffffff810fff00 <__do_page_fault>:   nopl   0x0(%rax,%rax,1) [FTRACE NOP]
+0xffffffff810fff00 <__do_page_fault>:   nopl   0x0(%rax,%rax,1) [FTRACE NOP]
+0xffffffff810fff00 <__do_page_fault>:   nopl   0x0(%rax,%rax,1) [FTRACE NOP]
+0xffffffff810fff00 <__do_page_fault>:   nopl   0x0(%rax,%rax,1) [FTRACE NOP]
+0xffffffff810fff05 <__do_page_fault+5>: push   %rbp
+0xffffffff810fff06 <__do_page_fault+6>: mov    %gs:0x19c40,%rax
+0xffffffff810fff0f <__do_page_fault+15>:        mov    %rsp,%rbp
+0xffffffff810fff12 <__do_page_fault+18>:        push   %r15
+0xffffffff810fff14 <__do_page_fault+20>:        push   %r14
+0xffffffff810fff16 <__do_page_fault+22>:        push   %r13
+0xffffffff810fff18 <__do_page_fault+24>:        push   %r12
+0xffffffff810fff1a <__do_page_fault+26>:        mov    %rdi,%r14
+0xffffffff810fff1d <__do_page_fault+29>:        push   %rbx
+0xffffffff810fff1e <__do_page_fault+30>:        mov    %rsi,%r12
+0xffffffff810fff21 <__do_page_fault+33>:        mov    %rdx,%rbx
+0xffffffff810fff24 <__do_page_fault+36>:        sub    $0x30,%rsp
+0xffffffff810fff28 <__do_page_fault+40>:        mov    0x828(%rax),%rax
+0xffffffff810fff2f <__do_page_fault+47>:        prefetcht0 0x78(%rax)
+0xffffffff810fff33 <__do_page_fault+51>:        mov    0x24dc747(%rip),%ecx        # 0xffffffff835dc680 <kmmio_count>
+0xffffffff810fff39 <__do_page_fault+57>:        test   %ecx,%ecx
+0xffffffff810fff3b <__do_page_fault+59>:        jne    0xffffffff8110022d <__do_page_fault+813>
+0xffffffff810fff41 <__do_page_fault+65>:        mov    %rbx,%r8
+0xffffffff810fff44 <__do_page_fault+68>:        and    $0xfffffffffffff000,%r8
+0xffffffff810fff4b <__do_page_fault+75>:        cmp    $0xffffffffff600000,%r8
+0xffffffff810fff52 <__do_page_fault+82>:        je     0xffffffff810fff6c <__do_page_fault+108>
+0xffffffff810fff54 <__do_page_fault+84>:        jmpq   0xffffffff811000da <__do_page_fault+474>
+0xffffffff810fff59 <__do_page_fault+89>:        movabs $0xfffffffffff000,%rax
+0xffffffff810fff63 <__do_page_fault+99>:        cmp    %rax,%rbx
+0xffffffff810fff66 <__do_page_fault+102>:       jae    0xffffffff8110013b <__do_page_fault+571>
+0xffffffff810fff6c <__do_page_fault+108>:       mov    %gs:0x19c40,%r15
+0xffffffff810fff75 <__do_page_fault+117>:       testb  $0x3,0x88(%r14)
+0xffffffff810fff7d <__do_page_fault+125>:       mov    0x828(%r15),%rax
+0xffffffff810fff84 <__do_page_fault+132>:       mov    %rax,-0x30(%rbp)
+0xffffffff810fff88 <__do_page_fault+136>:       je     0xffffffff811000aa <__do_page_fault+426>
+0xffffffff810fff8e <__do_page_fault+142>:       test   $0x8,%r12b
+0xffffffff810fff92 <__do_page_fault+146>:       jne    0xffffffff81100243 <__do_page_fault+835>
+0xffffffff810fff98 <__do_page_fault+152>:       jmp    0xffffffff810fffa7 <__do_page_fault+167>
+0xffffffff810fff9a <__do_page_fault+154>:       nopl   (%rax)
+0xffffffff810fff9d <__do_page_fault+157>:       test   $0x4,%r12b
+0xffffffff810fffa1 <__do_page_fault+161>:       je     0xffffffff81100330 <__do_page_fault+1072>
+0xffffffff810fffa7 <__do_page_fault+167>:       mov    %gs:0x19c40,%rax
+0xffffffff810fffb0 <__do_page_fault+176>:       mov    0x12e0(%rax),%edx
+0xffffffff810fffb6 <__do_page_fault+182>:       test   %edx,%edx
+0xffffffff810fffb8 <__do_page_fault+184>:       jne    0xffffffff811000fe <__do_page_fault+510>
+0xffffffff810fffbe <__do_page_fault+190>:       mov    %gs:0x7ef19c43(%rip),%eax        # 0x19c08
+0xffffffff810fffc5 <__do_page_fault+197>:       test   $0x7fffffff,%eax
+0xffffffff810fffca <__do_page_fault+202>:       jne    0xffffffff811000fe <__do_page_fault+510>
+0xffffffff810fffd0 <__do_page_fault+208>:       cmpq   $0x0,-0x30(%rbp)
+0xffffffff810fffd5 <__do_page_fault+213>:       je     0xffffffff811000fe <__do_page_fault+510>
+0xffffffff810fffdb <__do_page_fault+219>:       testb  $0x3,0x88(%r14)
+0xffffffff810fffe3 <__do_page_fault+227>:       jne    0xffffffff8110011b <__do_page_fault+539>
+0xffffffff810fffe9 <__do_page_fault+233>:       testb  $0x2,0x91(%r14)
+0xffffffff810ffff1 <__do_page_fault+241>:       mov    $0x14,%r13d
+0xffffffff810ffff7 <__do_page_fault+247>:       jne    0xffffffff81100213 <__do_page_fault+787>
+0xffffffff810ffffd <__do_page_fault+253>:       nopl   0x0(%rax,%rax,1)
+0xffffffff81100002 <__do_page_fault+258>:       mov    %r13d,%eax
+0xffffffff81100005 <__do_page_fault+261>:       mov    %r12,%rcx
+0xffffffff81100008 <__do_page_fault+264>:       or     $0x1,%eax
+0xffffffff8110000b <__do_page_fault+267>:       and    $0x2,%ecx
+0xffffffff8110000e <__do_page_fault+270>:       cmovne %eax,%r13d
+0xffffffff81100012 <__do_page_fault+274>:       mov    %rcx,-0x50(%rbp)
+0xffffffff81100016 <__do_page_fault+278>:       mov    %r12,%rcx
+0xffffffff81100019 <__do_page_fault+281>:       mov    %r13d,%eax
+0xffffffff8110001c <__do_page_fault+284>:       or     $0x1,%ah
+0xffffffff8110001f <__do_page_fault+287>:       and    $0x10,%ecx
+0xffffffff81100022 <__do_page_fault+290>:       cmovne %eax,%r13d
+0xffffffff81100026 <__do_page_fault+294>:       cmp    $0xffffffffff600000,%r8
+0xffffffff8110002d <__do_page_fault+301>:       mov    %rcx,-0x48(%rbp)
+0xffffffff81100031 <__do_page_fault+305>:       je     0xffffffff81100292 <__do_page_fault+914>
+0xffffffff81100037 <__do_page_fault+311>:       mov    -0x30(%rbp),%rax
+0xffffffff8110003b <__do_page_fault+315>:       add    $0x78,%rax
+0xffffffff8110003f <__do_page_fault+319>:       mov    %rax,%rdi
+0xffffffff81100042 <__do_page_fault+322>:       mov    %rax,-0x40(%rbp)
+0xffffffff81100046 <__do_page_fault+326>:       callq  0xffffffff81186ab0 <down_read_trylock>
+0xffffffff8110004b <__do_page_fault+331>:       test   %eax,%eax
+0xffffffff8110004d <__do_page_fault+333>:       je     0xffffffff8110036f <__do_page_fault+1135>
+0xffffffff81100053 <__do_page_fault+339>:       callq  0xffffffff81bd1ee0 <_cond_resched>
+0xffffffff81100058 <__do_page_fault+344>:       movl   $0x0,-0x38(%rbp)
+0xffffffff8110005f <__do_page_fault+351>:       mov    -0x30(%rbp),%rdi
+0xffffffff81100063 <__do_page_fault+355>:       mov    %rbx,%rsi
+0xffffffff81100066 <__do_page_fault+358>:       callq  0xffffffff812fd810 <find_vma>
+0xffffffff8110006b <__do_page_fault+363>:       test   %rax,%rax
+0xffffffff8110006e <__do_page_fault+366>:       mov    %rax,%r8
+0xffffffff81100071 <__do_page_fault+369>:       je     0xffffffff8110027f <__do_page_fault+895>
+0xffffffff81100077 <__do_page_fault+375>:       cmp    (%rax),%rbx
+0xffffffff8110007a <__do_page_fault+378>:       jb     0xffffffff8110025e <__do_page_fault+862>
+0xffffffff81100080 <__do_page_fault+384>:       test   $0x20,%r12b
+0xffffffff81100084 <__do_page_fault+388>:       je     0xffffffff81100170 <__do_page_fault+624>
+0xffffffff8110008a <__do_page_fault+394>:       mov    %r8,%rcx
+0xffffffff8110008d <__do_page_fault+397>:       mov    %rbx,%rdx
+0xffffffff81100090 <__do_page_fault+400>:       mov    %r12,%rsi
+0xffffffff81100093 <__do_page_fault+403>:       mov    %r14,%rdi
+0xffffffff81100096 <__do_page_fault+406>:       callq  0xffffffff810ff8b0 <bad_area_access_error>
+0xffffffff8110009b <__do_page_fault+411>:       add    $0x30,%rsp
+0xffffffff8110009f <__do_page_fault+415>:       pop    %rbx
+0xffffffff811000a0 <__do_page_fault+416>:       pop    %r12
+0xffffffff811000a2 <__do_page_fault+418>:       pop    %r13
+0xffffffff811000a4 <__do_page_fault+420>:       pop    %r14
+0xffffffff811000a6 <__do_page_fault+422>:       pop    %r15
+0xffffffff811000a8 <__do_page_fault+424>:       pop    %rbp
+0xffffffff811000a9 <__do_page_fault+425>:       retq
+0xffffffff811000aa <__do_page_fault+426>:       mov    %gs:0x7ef19e06(%rip),%rax        # 0x19eb8
+0xffffffff811000b2 <__do_page_fault+434>:       test   %rax,%rax
+0xffffffff811000b5 <__do_page_fault+437>:       je     0xffffffff810fff8e <__do_page_fault+142>
+0xffffffff811000bb <__do_page_fault+443>:       mov    $0xe,%esi
+0xffffffff811000c0 <__do_page_fault+448>:       mov    %r14,%rdi
+0xffffffff811000c3 <__do_page_fault+451>:       mov    %r8,-0x38(%rbp)
+0xffffffff811000c7 <__do_page_fault+455>:       callq  0xffffffff810f0890 <kprobe_fault_handler>
+0xffffffff811000cc <__do_page_fault+460>:       test   %eax,%eax
+0xffffffff811000ce <__do_page_fault+462>:       mov    -0x38(%rbp),%r8
+0xffffffff811000d2 <__do_page_fault+466>:       je     0xffffffff810fff8e <__do_page_fault+142>
+0xffffffff811000d8 <__do_page_fault+472>:       jmp    0xffffffff8110009b <__do_page_fault+411>
+0xffffffff811000da <__do_page_fault+474>:       movabs $0x7ffffffff000,%rax
+0xffffffff811000e4 <__do_page_fault+484>:       jmpq   0xffffffff810fff63 <__do_page_fault+99>
+0xffffffff811000e9 <__do_page_fault+489>:       mov    0x80(%r14),%rdi
+0xffffffff811000f0 <__do_page_fault+496>:       callq  0xffffffff811480f0 <search_exception_tables>
+0xffffffff811000f5 <__do_page_fault+501>:       test   %rax,%rax
+0xffffffff811000f8 <__do_page_fault+504>:       jne    0xffffffff81100384 <__do_page_fault+1156>
+0xffffffff811000fe <__do_page_fault+510>:       mov    %rbx,%rdx
+0xffffffff81100101 <__do_page_fault+513>:       mov    %r12,%rsi
+0xffffffff81100104 <__do_page_fault+516>:       mov    %r14,%rdi
+0xffffffff81100107 <__do_page_fault+519>:       callq  0xffffffff810ff7b0 <bad_area_nosemaphore>
+0xffffffff8110010c <__do_page_fault+524>:       add    $0x30,%rsp
+0xffffffff81100110 <__do_page_fault+528>:       pop    %rbx
+0xffffffff81100111 <__do_page_fault+529>:       pop    %r12
+0xffffffff81100113 <__do_page_fault+531>:       pop    %r13
+0xffffffff81100115 <__do_page_fault+533>:       pop    %r14
+0xffffffff81100117 <__do_page_fault+535>:       pop    %r15
+0xffffffff81100119 <__do_page_fault+537>:       pop    %rbp
+0xffffffff8110011a <__do_page_fault+538>:       retq
+0xffffffff8110011b <__do_page_fault+539>:       cmpq   $0x0,0x195e3a5(%rip)        # 0xffffffff82a5e4c8 <pv_ops+296>
+0xffffffff81100123 <__do_page_fault+547>:       je     0xffffffff811003ee <__do_page_fault+1262>
+0xffffffff81100129 <__do_page_fault+553>:       sti
+0xffffffff8110012a <__do_page_fault+554>:       nopw   0x0(%rax,%rax,1)
+0xffffffff81100130 <__do_page_fault+560>:       mov    $0x54,%r13d
+0xffffffff81100136 <__do_page_fault+566>:       jmpq   0xffffffff810ffffd <__do_page_fault+253>
+0xffffffff8110013b <__do_page_fault+571>:       mov    %rbx,%rdx
+0xffffffff8110013e <__do_page_fault+574>:       mov    %r12,%rsi
+0xffffffff81100141 <__do_page_fault+577>:       mov    %r14,%rdi
+0xffffffff81100144 <__do_page_fault+580>:       callq  0xffffffff810ff7d0 <do_kern_addr_fault>
+0xffffffff81100149 <__do_page_fault+585>:       jmpq   0xffffffff8110009b <__do_page_fault+411>
+0xffffffff8110014e <__do_page_fault+590>:       mov    %rbx,%rcx
+0xffffffff81100151 <__do_page_fault+593>:       mov    %r14,%rdx
+0xffffffff81100154 <__do_page_fault+596>:       mov    $0x1,%esi
+0xffffffff81100159 <__do_page_fault+601>:       mov    $0x2,%edi
+0xffffffff8110015e <__do_page_fault+606>:       mov    %r8,-0x38(%rbp)
+0xffffffff81100162 <__do_page_fault+610>:       callq  0xffffffff812a9040 <__perf_sw_event>
+0xffffffff81100167 <__do_page_fault+615>:       mov    -0x38(%rbp),%r8
+0xffffffff8110016b <__do_page_fault+619>:       jmpq   0xffffffff81100002 <__do_page_fault+258>
+0xffffffff81100170 <__do_page_fault+624>:       cmpq   $0x0,-0x48(%rbp)
+0xffffffff81100175 <__do_page_fault+629>:       jne    0xffffffff8110019b <__do_page_fault+667>
+0xffffffff81100177 <__do_page_fault+631>:       mov    %gs:0x19c40,%rax
+0xffffffff81100180 <__do_page_fault+640>:       cmpq   $0x0,0x828(%rax)
+0xffffffff81100188 <__do_page_fault+648>:       je     0xffffffff8110019b <__do_page_fault+667>
+0xffffffff8110018a <__do_page_fault+650>:       mov    0x40(%r8),%rcx
+0xffffffff8110018e <__do_page_fault+654>:       cmp    %rcx,0x828(%rax)
+0xffffffff81100195 <__do_page_fault+661>:       je     0xffffffff811002ec <__do_page_fault+1004>
+0xffffffff8110019b <__do_page_fault+667>:       cmpq   $0x0,-0x50(%rbp)
+0xffffffff811001a0 <__do_page_fault+672>:       je     0xffffffff811002d2 <__do_page_fault+978>
+0xffffffff811001a6 <__do_page_fault+678>:       mov    0x50(%r8),%rsi
+0xffffffff811001aa <__do_page_fault+682>:       and    $0x2,%esi
+0xffffffff811001ad <__do_page_fault+685>:       je     0xffffffff8110008a <__do_page_fault+394>
+0xffffffff811001b3 <__do_page_fault+691>:       mov    %r13d,%edx
+0xffffffff811001b6 <__do_page_fault+694>:       mov    %rbx,%rsi
+0xffffffff811001b9 <__do_page_fault+697>:       mov    %r8,%rdi
+0xffffffff811001bc <__do_page_fault+700>:       callq  0xffffffff812f9f20 <handle_mm_fault>
+0xffffffff811001c1 <__do_page_fault+705>:       mov    %eax,%edx
+0xffffffff811001c3 <__do_page_fault+707>:       and    $0x4,%edx
+0xffffffff811001c6 <__do_page_fault+710>:       or     %edx,-0x38(%rbp)
+0xffffffff811001c9 <__do_page_fault+713>:       test   $0x4,%ah
+0xffffffff811001cc <__do_page_fault+716>:       jne    0xffffffff81100392 <__do_page_fault+1170>
+0xffffffff811001d2 <__do_page_fault+722>:       mov    -0x40(%rbp),%rdi
+0xffffffff811001d6 <__do_page_fault+726>:       mov    %eax,-0x30(%rbp)
+0xffffffff811001d9 <__do_page_fault+729>:       callq  0xffffffff81186f90 <up_read>
+0xffffffff811001de <__do_page_fault+734>:       mov    -0x30(%rbp),%eax
+0xffffffff811001e1 <__do_page_fault+737>:       test   $0x873,%eax
+0xffffffff811001e6 <__do_page_fault+742>:       jne    0xffffffff811003d9 <__do_page_fault+1241>
+0xffffffff811001ec <__do_page_fault+748>:       mov    -0x38(%rbp),%eax
+0xffffffff811001ef <__do_page_fault+751>:       test   %eax,%eax
+0xffffffff811001f1 <__do_page_fault+753>:       je     0xffffffff81100343 <__do_page_fault+1091>
+0xffffffff811001f7 <__do_page_fault+759>:       addq   $0x1,0xa18(%r15)
+0xffffffff811001ff <__do_page_fault+767>:       nopl   0x0(%rax,%rax,1)
+0xffffffff81100204 <__do_page_fault+772>:       add    $0x30,%rsp
+0xffffffff81100208 <__do_page_fault+776>:       pop    %rbx
+0xffffffff81100209 <__do_page_fault+777>:       pop    %r12
+0xffffffff8110020b <__do_page_fault+779>:       pop    %r13
+0xffffffff8110020d <__do_page_fault+781>:       pop    %r14
+0xffffffff8110020f <__do_page_fault+783>:       pop    %r15
+0xffffffff81100211 <__do_page_fault+785>:       pop    %rbp
+0xffffffff81100212 <__do_page_fault+786>:       retq
+0xffffffff81100213 <__do_page_fault+787>:       cmpq   $0x0,0x195e2ad(%rip)        # 0xffffffff82a5e4c8 <pv_ops+296>
+0xffffffff8110021b <__do_page_fault+795>:       je     0xffffffff811003f0 <__do_page_fault+1264>
+0xffffffff81100221 <__do_page_fault+801>:       sti
+0xffffffff81100222 <__do_page_fault+802>:       nopw   0x0(%rax,%rax,1)
+0xffffffff81100228 <__do_page_fault+808>:       jmpq   0xffffffff810ffffd <__do_page_fault+253>
+0xffffffff8110022d <__do_page_fault+813>:       mov    %rdx,%rsi
+0xffffffff81100230 <__do_page_fault+816>:       callq  0xffffffff8110b9f0 <kmmio_handler>
+0xffffffff81100235 <__do_page_fault+821>:       cmp    $0x1,%eax
+0xffffffff81100238 <__do_page_fault+824>:       jne    0xffffffff810fff41 <__do_page_fault+65>
+0xffffffff8110023e <__do_page_fault+830>:       jmpq   0xffffffff8110009b <__do_page_fault+411>
+0xffffffff81100243 <__do_page_fault+835>:       mov    %rbx,%rdx
+0xffffffff81100246 <__do_page_fault+838>:       mov    %r12,%rsi
+0xffffffff81100249 <__do_page_fault+841>:       mov    %r14,%rdi
+0xffffffff8110024c <__do_page_fault+844>:       mov    %r8,-0x38(%rbp)
+0xffffffff81100250 <__do_page_fault+848>:       callq  0xffffffff810fefb0 <pgtable_bad>
+0xffffffff81100255 <__do_page_fault+853>:       mov    -0x38(%rbp),%r8
