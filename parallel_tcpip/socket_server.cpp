@@ -196,7 +196,6 @@ int   main( void)
 				threads[i].join();
 				std::cout << "Joined thread n'" << i << "\n";
 			}
-			break;
 		}
 		i++;
 	}
