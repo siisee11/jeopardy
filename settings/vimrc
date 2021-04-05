@@ -13,6 +13,7 @@ Plug 'Lokaltog/vim-easymotion'
 Plug 'ronakg/quickr-cscope.vim'
 Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'neoclide/coc.nvim', {'branch': 'release'}
+Plugin 'wakatime/vim-wakatime'
 
 call plug#end()
 
